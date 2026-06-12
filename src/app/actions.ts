@@ -2,10 +2,12 @@
 
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { users } from "@/db/schema";
-import { createSession, destroySession } from "@/lib/auth";
+import { matches, predictions, users } from "@/db/schema";
+import { createSession, destroySession, requireUser } from "@/lib/auth";
+import { isOpenForPrediction } from "@/lib/rules";
 
 export type FormState = { error?: string } | undefined;
 
@@ -23,4 +25,25 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
 export async function logout() {
   await destroySession();
   redirect("/login");
+}
+
+export async function savePrediction(matchId: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const home = Number(formData.get("home"));
+  const away = Number(formData.get("away"));
+  if (!Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0 || home > 99 || away > 99) {
+    return { error: "Scores must be whole numbers between 0 and 99" };
+  }
+  const match = await db.query.matches.findFirst({ where: eq(matches.id, matchId) });
+  if (!match || !isOpenForPrediction(match, new Date())) {
+    return { error: "Predictions are closed for this match" };
+  }
+  await db.insert(predictions)
+    .values({ userId: user.id, matchId, homeScore: home, awayScore: away, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [predictions.userId, predictions.matchId],
+      set: { homeScore: home, awayScore: away, updatedAt: new Date() },
+    });
+  revalidatePath("/");
+  return undefined;
 }

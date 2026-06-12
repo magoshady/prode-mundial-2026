@@ -1,65 +1,87 @@
-import Image from "next/image";
+import { asc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { matches, predictions } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+import { isOpenForPrediction, isScoreable } from "@/lib/rules";
+import { predictionPoints } from "@/lib/scoring";
+import Nav from "@/components/Nav";
+import PredictionForm from "@/components/PredictionForm";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+const STAGE_ORDER = ["GROUP_STAGE", "LAST_32", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "THIRD_PLACE", "FINAL"];
+const STAGE_LABEL: Record<string, string> = {
+  GROUP_STAGE: "Group Stage", LAST_32: "Round of 32", LAST_16: "Round of 16",
+  QUARTER_FINALS: "Quarter-finals", SEMI_FINALS: "Semi-finals", THIRD_PLACE: "Third Place", FINAL: "Final",
+};
+const fmt = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires",
+});
+
+export default async function FixturePage() {
+  const user = await requireUser();
+  const now = new Date();
+  const [all, myPreds] = await Promise.all([
+    db.query.matches.findMany({ orderBy: [asc(matches.kickoffUtc), asc(matches.id)] }),
+    db.query.predictions.findMany({ where: eq(predictions.userId, user.id) }),
+  ]);
+  const predByMatch = new Map(myPreds.map((p) => [p.matchId, p]));
+
+  const stages = STAGE_ORDER.map((s) => ({ stage: s, items: all.filter((m) => m.stage === s) }))
+    .filter((g) => g.items.length > 0);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <Nav name={user.name} isAdmin={user.isAdmin} />
+      <main className="mx-auto max-w-4xl space-y-8 p-4">
+        {stages.map(({ stage, items }) => (
+          <section key={stage}>
+            <h2 className="mb-3 text-lg font-bold">{STAGE_LABEL[stage] ?? stage}</h2>
+            <div className="space-y-1.5">
+              {items.map((m) => {
+                const pred = predByMatch.get(m.id) ?? null;
+                const open = isOpenForPrediction(m, now);
+                const scoreable = isScoreable(m);
+                const pts = scoreable
+                  ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, { home: m.homeScore!, away: m.awayScore! })
+                  : null;
+                return (
+                  <div key={m.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm">
+                    <span className="w-28 shrink-0 text-xs text-zinc-500">
+                      {fmt.format(m.kickoffUtc)}
+                      {m.groupName && <span className="block">{m.groupName.replace("_", " ")}</span>}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {m.homeTeam ?? "TBD"} <span className="text-zinc-500">vs</span> {m.awayTeam ?? "TBD"}
+                      {m.status === "IN_PLAY" || m.status === "PAUSED" ? (
+                        <span className="ml-2 font-bold text-amber-400">{m.homeScore}-{m.awayScore} LIVE</span>
+                      ) : m.status === "FINISHED" ? (
+                        <span className="ml-2 font-bold">{m.homeScore}-{m.awayScore}</span>
+                      ) : null}
+                    </span>
+                    {open ? (
+                      <PredictionForm matchId={m.id} home={pred?.homeScore ?? null} away={pred?.awayScore ?? null} />
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <span className="text-zinc-400">
+                          {pred ? `You: ${pred.homeScore}-${pred.awayScore}` : "No prediction"}
+                        </span>
+                        {pts !== null && (
+                          <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${pts === 3 ? "bg-emerald-700" : pts === 1 ? "bg-amber-700" : "bg-zinc-700"}`}>
+                            {pts} pts
+                          </span>
+                        )}
+                        {!scoreable && <span className="text-xs text-zinc-600">🔒</span>}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </main>
-    </div>
+    </>
   );
 }
