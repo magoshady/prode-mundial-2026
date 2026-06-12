@@ -1243,7 +1243,7 @@ Results auto-sync from football-data.org every 10 minutes (Vercel cron).
 Import the GitHub repo in Vercel, set the four env vars, deploy. The cron in `vercel.json` keeps results fresh.
 ```
 
-- [ ] **Step 3: Full local verification (requires `DATABASE_URL` in `.env.local`)** — deferred: no `DATABASE_URL` yet; runs against the production Neon DB post-deploy.
+- [x] **Step 3: Full local verification (requires `DATABASE_URL` in `.env.local`)** — done 2026-06-12 against the Neon DB: tests, db:push, seed (104 matches, 5 users, 10 backfill preds), build, route smoke test all green.
 
 Run, in order, expecting success on each:
 
