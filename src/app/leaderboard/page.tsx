@@ -22,22 +22,27 @@ export default async function LeaderboardPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-700 text-left text-zinc-400">
-              <th className="py-2">#</th><th>Player</th>
-              <th className="text-right">Exact (3)</th>
-              <th className="text-right">Outcome (1)</th>
-              <th className="text-right">Points</th>
+              <th className="px-2 py-2">#</th>
+              <th className="px-2 py-2">Player</th>
+              <th className="px-2 py-2 text-right">Exact (3)</th>
+              <th className="px-2 py-2 text-right">Outcome (1)</th>
+              <th className="px-2 py-2 text-right">Points</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.userId} className={`border-b border-zinc-800 ${r.userId === user.id ? "bg-zinc-900 font-semibold" : ""}`}>
-                <td className="py-2">{r.rank}</td>
-                <td>{r.name}</td>
-                <td className="text-right">{r.exact}</td>
-                <td className="text-right">{r.outcomes}</td>
-                <td className="text-right text-base font-bold">{r.points}</td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const lastRank = rows[rows.length - 1].rank;
+              const badge = r.rank === 1 ? "🏆" : r.rank === lastRank ? "😢" : r.rank;
+              return (
+                <tr key={r.userId} className={`border-b border-zinc-800 ${r.userId === user.id ? "bg-zinc-900 font-semibold" : ""}`}>
+                  <td className="px-2 py-3 text-center">{badge}</td>
+                  <td className="px-2 py-3">{r.name}</td>
+                  <td className="px-2 py-3 text-right">{r.exact}</td>
+                  <td className="px-2 py-3 text-right">{r.outcomes}</td>
+                  <td className="px-2 py-3 text-right text-base font-bold">{r.points}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </main>
