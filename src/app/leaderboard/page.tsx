@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { computeStandings } from "@/lib/standings";
@@ -36,7 +37,9 @@ export default async function LeaderboardPage() {
               return (
                 <tr key={r.userId} className={`border-b border-zinc-800 ${r.userId === user.id ? "bg-zinc-900 font-semibold" : ""}`}>
                   <td className="px-2 py-3 text-center">{badge}</td>
-                  <td className="px-2 py-3">{r.name}</td>
+                  <td className="px-2 py-3">
+                    <Link href={`/player/${r.username}`} className="hover:underline">{r.name}</Link>
+                  </td>
                   <td className="px-2 py-3 text-right">{r.exact}</td>
                   <td className="px-2 py-3 text-right">{r.outcomes}</td>
                   <td className="px-2 py-3 text-right text-base font-bold">{r.points}</td>
