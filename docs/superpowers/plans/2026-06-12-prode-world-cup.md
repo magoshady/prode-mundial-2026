@@ -41,7 +41,7 @@ vercel.json, README.md, drizzle.config.ts
 
 **Files:** Create entire Next.js skeleton; Modify `.gitignore` (already covers `.next/`, `node_modules/`, `.env*.local`).
 
-- [ ] **Step 1: Scaffold into temp dir and merge** (project dir name has spaces, create-next-app rejects it in place)
+- [x] **Step 1: Scaffold into temp dir and merge** (project dir name has spaces, create-next-app rejects it in place)
 
 ```bash
 cd "/Users/rodrigocandi/Coding Projects/Prode World Cup 2026"
@@ -52,14 +52,14 @@ rm -rf webapp-tmp
 
 Then set `"name": "prode-mundial-2026"` in `package.json`.
 
-- [ ] **Step 2: Install dependencies**
+- [x] **Step 2: Install dependencies**
 
 ```bash
 npm i drizzle-orm @neondatabase/serverless bcryptjs jose
 npm i -D drizzle-kit vitest tsx dotenv @types/bcryptjs
 ```
 
-- [ ] **Step 3: Add scripts to package.json**
+- [x] **Step 3: Add scripts to package.json**
 
 ```json
 "test": "vitest run",
@@ -67,9 +67,9 @@ npm i -D drizzle-kit vitest tsx dotenv @types/bcryptjs
 "db:push": "drizzle-kit push"
 ```
 
-- [ ] **Step 4: Verify build** — `npm run build` → succeeds.
+- [x] **Step 4: Verify build** — `npm run build` → succeeds.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "chore: scaffold Next.js app"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "chore: scaffold Next.js app"`
 
 ---
 
@@ -77,7 +77,7 @@ npm i -D drizzle-kit vitest tsx dotenv @types/bcryptjs
 
 **Files:** Create `src/db/schema.ts`, `src/db/index.ts`, `drizzle.config.ts`.
 
-- [ ] **Step 1: Write `src/db/schema.ts`**
+- [x] **Step 1: Write `src/db/schema.ts`**
 
 ```ts
 import { boolean, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
@@ -121,7 +121,7 @@ export const meta = pgTable("meta", {
 });
 ```
 
-- [ ] **Step 2: Write `src/db/index.ts`**
+- [x] **Step 2: Write `src/db/index.ts`**
 
 ```ts
 import { neon } from "@neondatabase/serverless";
@@ -131,7 +131,7 @@ import * as schema from "./schema";
 export const db = drizzle(neon(process.env.DATABASE_URL!), { schema });
 ```
 
-- [ ] **Step 3: Write `drizzle.config.ts`**
+- [x] **Step 3: Write `drizzle.config.ts`**
 
 ```ts
 import { config } from "dotenv";
@@ -146,9 +146,9 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Typecheck** — `npx tsc --noEmit` → no errors. (No DB available yet; `db:push` runs later once Neon exists.)
+- [x] **Step 4: Typecheck** — `npx tsc --noEmit` → no errors. (No DB available yet; `db:push` runs later once Neon exists.)
 
-- [ ] **Step 5: Commit** — `git commit -m "feat: drizzle schema and db client"`
+- [x] **Step 5: Commit** — `git commit -m "feat: drizzle schema and db client"`
 
 ---
 
@@ -156,7 +156,7 @@ export default defineConfig({
 
 **Files:** Create `src/lib/scoring.ts`, `src/lib/scoring.test.ts`.
 
-- [ ] **Step 1: Write failing tests `src/lib/scoring.test.ts`**
+- [x] **Step 1: Write failing tests `src/lib/scoring.test.ts`**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -187,9 +187,9 @@ describe("predictionPoints", () => {
 });
 ```
 
-- [ ] **Step 2: Run** `npx vitest run src/lib/scoring.test.ts` → FAIL (module not found).
+- [x] **Step 2: Run** `npx vitest run src/lib/scoring.test.ts` → FAIL (module not found).
 
-- [ ] **Step 3: Implement `src/lib/scoring.ts`**
+- [x] **Step 3: Implement `src/lib/scoring.ts`**
 
 ```ts
 export type ScorePair = { home: number; away: number };
@@ -203,9 +203,9 @@ export function predictionPoints(pred: ScorePair | null | undefined, result: Sco
 }
 ```
 
-- [ ] **Step 4: Run tests** → PASS.
+- [x] **Step 4: Run tests** → PASS.
 
-- [ ] **Step 5: Commit** — `git commit -m "feat: scoring function with tests"`
+- [x] **Step 5: Commit** — `git commit -m "feat: scoring function with tests"`
 
 ---
 
@@ -213,7 +213,7 @@ export function predictionPoints(pred: ScorePair | null | undefined, result: Sco
 
 **Files:** Create `src/lib/rules.ts`, `src/lib/rules.test.ts`.
 
-- [ ] **Step 1: Write failing tests `src/lib/rules.test.ts`**
+- [x] **Step 1: Write failing tests `src/lib/rules.test.ts`**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -257,9 +257,9 @@ describe("isScoreable", () => {
 });
 ```
 
-- [ ] **Step 2: Run** → FAIL (module not found).
+- [x] **Step 2: Run** → FAIL (module not found).
 
-- [ ] **Step 3: Implement `src/lib/rules.ts`**
+- [x] **Step 3: Implement `src/lib/rules.ts`**
 
 ```ts
 export type MatchLike = {
@@ -287,9 +287,9 @@ export function isScoreable(m: Pick<MatchLike, "status" | "homeScore" | "awaySco
 }
 ```
 
-- [ ] **Step 4: Run tests** → PASS. Run full suite `npm test` → all pass.
+- [x] **Step 4: Run tests** → PASS. Run full suite `npm test` → all pass.
 
-- [ ] **Step 5: Commit** — `git commit -m "feat: prediction lock and visibility rules"`
+- [x] **Step 5: Commit** — `git commit -m "feat: prediction lock and visibility rules"`
 
 ---
 
@@ -297,7 +297,7 @@ export function isScoreable(m: Pick<MatchLike, "status" | "homeScore" | "awaySco
 
 **Files:** Create `src/lib/standings.ts`, `src/lib/standings.test.ts`.
 
-- [ ] **Step 1: Write failing tests `src/lib/standings.test.ts`**
+- [x] **Step 1: Write failing tests `src/lib/standings.test.ts`**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -343,9 +343,9 @@ describe("computeStandings", () => {
 });
 ```
 
-- [ ] **Step 2: Run** → FAIL.
+- [x] **Step 2: Run** → FAIL.
 
-- [ ] **Step 3: Implement `src/lib/standings.ts`**
+- [x] **Step 3: Implement `src/lib/standings.ts`**
 
 ```ts
 import { isScoreable, type MatchLike } from "./rules";
@@ -393,9 +393,9 @@ export function computeStandings(users: UserLite[], matches: MatchRow[], preds: 
 }
 ```
 
-- [ ] **Step 4: Run** `npm test` → all pass.
+- [x] **Step 4: Run** `npm test` → all pass.
 
-- [ ] **Step 5: Commit** — `git commit -m "feat: standings computation with tiebreaker"`
+- [x] **Step 5: Commit** — `git commit -m "feat: standings computation with tiebreaker"`
 
 ---
 
@@ -403,7 +403,7 @@ export function computeStandings(users: UserLite[], matches: MatchRow[], preds: 
 
 **Files:** Create `src/lib/auth.ts`, `src/app/login/page.tsx`, `src/app/actions.ts` (login/logout only for now).
 
-- [ ] **Step 1: Write `src/lib/auth.ts`**
+- [x] **Step 1: Write `src/lib/auth.ts`**
 
 ```ts
 import { SignJWT, jwtVerify } from "jose";
@@ -453,7 +453,7 @@ export async function requireUser() {
 }
 ```
 
-- [ ] **Step 2: Write `src/app/actions.ts`** (login/logout; later tasks append more actions)
+- [x] **Step 2: Write `src/app/actions.ts`** (login/logout; later tasks append more actions)
 
 ```ts
 "use server";
@@ -484,7 +484,7 @@ export async function logout() {
 }
 ```
 
-- [ ] **Step 3: Write `src/app/login/page.tsx`** (client form via useActionState)
+- [x] **Step 3: Write `src/app/login/page.tsx`** (client form via useActionState)
 
 ```tsx
 "use client";
@@ -516,17 +516,17 @@ export default function LoginPage() {
 }
 ```
 
-- [ ] **Step 4: Set dark base styles** — in `src/app/layout.tsx` set `<body className="bg-zinc-950 text-zinc-100 antialiased">` (replace font classNames as needed) and update `metadata` to `{ title: "Prode WC 2026" }`. Remove default `page.tsx` content later (Task 9). Generate a `SESSION_SECRET` and append to `.env.local`: `openssl rand -hex 32`.
+- [x] **Step 4: Set dark base styles** — in `src/app/layout.tsx` set `<body className="bg-zinc-950 text-zinc-100 antialiased">` (replace font classNames as needed) and update `metadata` to `{ title: "Prode WC 2026" }`. Remove default `page.tsx` content later (Task 9). Generate a `SESSION_SECRET` and append to `.env.local`: `openssl rand -hex 32`.
 
-- [ ] **Step 5: Verify** — `npx tsc --noEmit` passes; `npm run build` passes.
+- [x] **Step 5: Verify** — `npx tsc --noEmit` passes; `npm run build` passes.
 
-- [ ] **Step 6: Commit** — `git commit -m "feat: cookie session auth and login page"`
+- [x] **Step 6: Commit** — `git commit -m "feat: cookie session auth and login page"`
 
 ---### Task 7: Results sync + cron endpoint
 
 **Files:** Create `src/lib/sync.ts`, `src/app/api/sync/route.ts`.
 
-- [ ] **Step 1: Write `src/lib/sync.ts`**
+- [x] **Step 1: Write `src/lib/sync.ts`**
 
 ```ts
 import { sql } from "drizzle-orm";
@@ -588,7 +588,7 @@ export async function syncMatches(): Promise<{ count: number }> {
 }
 ```
 
-- [ ] **Step 2: Write `src/app/api/sync/route.ts`** (Vercel cron sends `Authorization: Bearer $CRON_SECRET`)
+- [x] **Step 2: Write `src/app/api/sync/route.ts`** (Vercel cron sends `Authorization: Bearer $CRON_SECRET`)
 
 ```ts
 import { syncMatches } from "@/lib/sync";
@@ -605,9 +605,9 @@ export async function GET(req: Request) {
 }
 ```
 
-- [ ] **Step 3: Verify** — `npx tsc --noEmit` passes. (Live test happens in Task 13 once the DB exists.)
+- [x] **Step 3: Verify** — `npx tsc --noEmit` passes. (Live test happens in Task 13 once the DB exists.)
 
-- [ ] **Step 4: Commit** — `git commit -m "feat: football-data sync and cron endpoint"`
+- [x] **Step 4: Commit** — `git commit -m "feat: football-data sync and cron endpoint"`
 
 ---
 
@@ -615,7 +615,7 @@ export async function GET(req: Request) {
 
 **Files:** Create `scripts/seed.ts`.
 
-- [ ] **Step 1: Write `scripts/seed.ts`**
+- [x] **Step 1: Write `scripts/seed.ts`**
 
 ```ts
 /* Run with: npm run seed  (needs DATABASE_URL + FOOTBALL_DATA_TOKEN in .env.local) */
@@ -693,9 +693,9 @@ async function main() {
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 ```
 
-- [ ] **Step 2: Verify** — `npx tsc --noEmit` passes (script execution deferred to Task 13 when DB exists).
+- [x] **Step 2: Verify** — `npx tsc --noEmit` passes (script execution deferred to Task 13 when DB exists).
 
-- [ ] **Step 3: Commit** — `git commit -m "feat: seed script with users, passwords, and backfill"`
+- [x] **Step 3: Commit** — `git commit -m "feat: seed script with users, passwords, and backfill"`
 
 ---
 
@@ -703,7 +703,7 @@ main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit
 
 **Files:** Create `src/components/Nav.tsx`, `src/components/PredictionForm.tsx`; Replace `src/app/page.tsx`; Modify `src/app/layout.tsx`, `src/app/actions.ts` (append `savePrediction`).
 
-- [ ] **Step 1: Append `savePrediction` to `src/app/actions.ts`**
+- [x] **Step 1: Append `savePrediction` to `src/app/actions.ts`**
 
 ```ts
 // ...append below logout(); add these imports at top:
@@ -734,7 +734,7 @@ export async function savePrediction(matchId: number, _prev: FormState, formData
 }
 ```
 
-- [ ] **Step 2: Write `src/components/Nav.tsx`**
+- [x] **Step 2: Write `src/components/Nav.tsx`**
 
 ```tsx
 import Link from "next/link";
@@ -759,7 +759,7 @@ export default function Nav({ name, isAdmin }: { name: string; isAdmin: boolean 
 }
 ```
 
-- [ ] **Step 3: Write `src/components/PredictionForm.tsx`**
+- [x] **Step 3: Write `src/components/PredictionForm.tsx`**
 
 ```tsx
 "use client";
@@ -790,7 +790,7 @@ export default function PredictionForm({
 }
 ```
 
-- [ ] **Step 4: Replace `src/app/page.tsx`** (fixture)
+- [x] **Step 4: Replace `src/app/page.tsx`** (fixture)
 
 ```tsx
 import { asc } from "drizzle-orm";
@@ -882,9 +882,9 @@ export default async function FixturePage() {
 }
 ```
 
-- [ ] **Step 5: Verify** — `npm run build` passes.
+- [x] **Step 5: Verify** — `npm run build` passes.
 
-- [ ] **Step 6: Commit** — `git commit -m "feat: fixture page with inline predictions"`
+- [x] **Step 6: Commit** — `git commit -m "feat: fixture page with inline predictions"`
 
 ---
 
@@ -892,7 +892,7 @@ export default async function FixturePage() {
 
 **Files:** Create `src/app/leaderboard/page.tsx`.
 
-- [ ] **Step 1: Write `src/app/leaderboard/page.tsx`**
+- [x] **Step 1: Write `src/app/leaderboard/page.tsx`**
 
 ```tsx
 import { db } from "@/db";
@@ -943,9 +943,9 @@ export default async function LeaderboardPage() {
 }
 ```
 
-- [ ] **Step 2: Verify** — `npm run build` passes.
+- [x] **Step 2: Verify** — `npm run build` passes.
 
-- [ ] **Step 3: Commit** — `git commit -m "feat: leaderboard page"`
+- [x] **Step 3: Commit** — `git commit -m "feat: leaderboard page"`
 
 ---
 
@@ -953,7 +953,7 @@ export default async function LeaderboardPage() {
 
 **Files:** Create `src/app/compare/page.tsx`, `src/app/compare/[username]/page.tsx`.
 
-- [ ] **Step 1: Write `src/app/compare/page.tsx`** (player picker)
+- [x] **Step 1: Write `src/app/compare/page.tsx`** (player picker)
 
 ```tsx
 import Link from "next/link";
@@ -987,7 +987,7 @@ export default async function ComparePage() {
 }
 ```
 
-- [ ] **Step 2: Write `src/app/compare/[username]/page.tsx`**
+- [x] **Step 2: Write `src/app/compare/[username]/page.tsx`**
 
 ```tsx
 import { notFound } from "next/navigation";
@@ -1063,9 +1063,9 @@ export default async function CompareUserPage({ params }: { params: Promise<{ us
 }
 ```
 
-- [ ] **Step 3: Verify** — `npm run build` passes.
+- [x] **Step 3: Verify** — `npm run build` passes.
 
-- [ ] **Step 4: Commit** — `git commit -m "feat: head-to-head compare pages"`
+- [x] **Step 4: Commit** — `git commit -m "feat: head-to-head compare pages"`
 
 ---
 
@@ -1073,7 +1073,7 @@ export default async function CompareUserPage({ params }: { params: Promise<{ us
 
 **Files:** Create `src/app/admin/page.tsx`, `src/components/AdminMatchRow.tsx`; Modify `src/app/actions.ts` (append `adminSync`, `adminUpdateResult`).
 
-- [ ] **Step 1: Append admin actions to `src/app/actions.ts`** (add `meta` to schema imports, `syncMatches` import from `@/lib/sync`)
+- [x] **Step 1: Append admin actions to `src/app/actions.ts`** (add `meta` to schema imports, `syncMatches` import from `@/lib/sync`)
 
 ```ts
 export async function adminSync(): Promise<void> {
@@ -1102,7 +1102,7 @@ export async function adminUpdateResult(matchId: number, _prev: FormState, formD
 }
 ```
 
-- [ ] **Step 2: Write `src/components/AdminMatchRow.tsx`**
+- [x] **Step 2: Write `src/components/AdminMatchRow.tsx`**
 
 ```tsx
 "use client";
@@ -1136,7 +1136,7 @@ export default function AdminMatchRow({ matchId, label, kickoff, homeScore, away
 }
 ```
 
-- [ ] **Step 3: Write `src/app/admin/page.tsx`**
+- [x] **Step 3: Write `src/app/admin/page.tsx`**
 
 ```tsx
 import { redirect } from "next/navigation";
@@ -1189,9 +1189,9 @@ export default async function AdminPage() {
 }
 ```
 
-- [ ] **Step 4: Verify** — `npm run build` passes, `npm test` all green.
+- [x] **Step 4: Verify** — `npm run build` passes, `npm test` all green.
 
-- [ ] **Step 5: Commit** — `git commit -m "feat: admin page with sync and result editing"`
+- [x] **Step 5: Commit** — `git commit -m "feat: admin page with sync and result editing"`
 
 ---
 
@@ -1199,7 +1199,7 @@ export default async function AdminPage() {
 
 **Files:** Create `vercel.json`, replace `README.md`.
 
-- [ ] **Step 1: Write `vercel.json`**
+- [x] **Step 1: Write `vercel.json`**
 
 ```json
 {
@@ -1207,7 +1207,7 @@ export default async function AdminPage() {
 }
 ```
 
-- [ ] **Step 2: Replace `README.md`**
+- [x] **Step 2: Replace `README.md`**
 
 ```markdown
 # Prode Mundial 2026
@@ -1243,7 +1243,7 @@ Results auto-sync from football-data.org every 10 minutes (Vercel cron).
 Import the GitHub repo in Vercel, set the four env vars, deploy. The cron in `vercel.json` keeps results fresh.
 ```
 
-- [ ] **Step 3: Full local verification (requires `DATABASE_URL` in `.env.local`)**
+- [ ] **Step 3: Full local verification (requires `DATABASE_URL` in `.env.local`)** — deferred: no `DATABASE_URL` yet; runs against the production Neon DB post-deploy.
 
 Run, in order, expecting success on each:
 
@@ -1257,7 +1257,7 @@ npm run dev            # manual smoke test below
 
 Manual smoke test: log in as rodrigo → fixture shows group stage with MEX 2-0 RSA finished and points badge (1 pt) → leaderboard shows Atu/Martin 3, Rodrigo/Pablo 1, Leo 0 → compare vs Martin shows both predictions for played matches → admin page loads, Sync now works → log in as leo in private window → cannot see Rodrigo's prediction for any future match anywhere.
 
-- [ ] **Step 4: Commit and push**
+- [x] **Step 4: Commit and push**
 
 ```bash
 git add -A && git commit -m "feat: vercel cron config and README"
