@@ -19,7 +19,7 @@ Random passwords are generated at seed time, stored as bcrypt hashes, and delive
 - **Next.js** (App Router, TypeScript) + **Tailwind CSS**, UI in English
 - **Neon Postgres** (free tier, provisioned via Vercel marketplace) with **Drizzle ORM**
 - **Auth:** username + password against seeded users; signed session cookie (JWT via `jose`, `SESSION_SECRET` env var). No registration, no password reset.
-- **Hosting:** Vercel (Hobby), repo on GitHub
+- **Hosting:** Vercel (Pro), repo at github.com/magoshady/prode-mundial-2026. Rodrigo handles the Vercel deploy himself; the repo ships `vercel.json` and a README listing the required env vars (`DATABASE_URL`, `FOOTBALL_DATA_TOKEN`, `SESSION_SECRET`, `CRON_SECRET`).
 
 ## Data model
 
@@ -34,7 +34,7 @@ Points are computed on the fly (5 users × 104 matches is trivial); no stored sc
 
 - Source: `GET /v4/competitions/WC/matches` with `X-Auth-Token` header. Token verified working; lives in `.env.local` locally and Vercel env vars in prod — never committed.
 - All 104 matches seeded up front. Knockout matches arrive as TBD teams and are filled in by sync as qualifiers are decided — this covers "populate round of 32/16/quarters/semis/third place/final" automatically.
-- **Lazy sync:** Vercel Hobby crons are daily-only, so any authenticated page load triggers a background re-sync if `last_synced_at` is older than 10 minutes. Sync upserts team names, kickoff times, status, and scores.
+- **Cron sync:** Vercel Pro plan — a Vercel Cron job hits `/api/sync` every 10 minutes (configured in `vercel.json`, protected by `CRON_SECRET`). Sync upserts team names, kickoff times, status, and scores.
 - Respect rate limits: free tier is 10 requests/minute; check `x-requests-available-minute` response header and skip sync when exhausted (per football-data.org's guidance).
 - Admin fallback: "Sync now" button plus manual result editing.
 
@@ -58,11 +58,21 @@ Points are computed on the fly (5 users × 104 matches is trivial); no stored sc
 - `/` (fixture) — matches grouped by stage and date; inline prediction inputs for open matches; result, own prediction, and points earned for played matches
 - `/leaderboard` — total points, exact-hit count, rank
 - `/compare/[username]` — for each played match: their prediction vs. my prediction vs. actual result, with points each earned; totals at the top
-- `/admin` (Rodrigo only) — sync now, edit any match result, backfill predictions
+- `/admin` (Rodrigo only) — sync now, edit any match result
 
 ## Backfill (pre-app matches)
 
-The group used another app before this one existed. Rodrigo will provide the results and everyone's predictions for matches already played; these are inserted via the admin backfill page (select match + enter all 5 players' predictions) so history and points carry over. Locked matches accept backfilled predictions only via admin.
+The group used another app for the first two matches (Mexico 2–0 South Africa, South Korea 2–1 Czechia). Rodrigo provided points per player; the seed script inserts representative predictions that reproduce them exactly:
+
+| Player | MEX–RSA (2–0) | KOR–CZE (2–1) | Points |
+|--------|---------------|----------------|--------|
+| Atu (Axel) | 2–0 (exact, 3) | 1–1 (0) | 3 |
+| Martin | 2–0 (exact, 3) | 1–1 (0) | 3 |
+| Rodrigo | 1–0 (winner, 1) | 1–1 (0) | 1 |
+| Pablo | 1–0 (winner, 1) | 1–1 (0) | 1 |
+| Leo | 1–1 (0) | 1–1 (0) | 0 |
+
+Scorelines are representative (real points, synthetic scores); real ones can replace them later if provided.
 
 ## Error handling
 
