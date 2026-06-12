@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { matches, predictions, users } from "@/db/schema";
 import { createSession, destroySession, requireUser } from "@/lib/auth";
 import { isOpenForPrediction } from "@/lib/rules";
+import { syncMatches } from "@/lib/sync";
 
 export type FormState = { error?: string } | undefined;
 
@@ -45,5 +46,30 @@ export async function savePrediction(matchId: number, _prev: FormState, formData
       set: { homeScore: home, awayScore: away, updatedAt: new Date() },
     });
   revalidatePath("/");
+  return undefined;
+}
+
+export async function adminSync(): Promise<void> {
+  const user = await requireUser();
+  if (!user.isAdmin) return;
+  await syncMatches();
+  revalidatePath("/", "layout");
+}
+
+export async function adminUpdateResult(matchId: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  if (!user.isAdmin) return { error: "Not allowed" };
+  const rawHome = String(formData.get("home") ?? "").trim();
+  const rawAway = String(formData.get("away") ?? "").trim();
+  const status = String(formData.get("status") ?? "");
+  const home = rawHome === "" ? null : Number(rawHome);
+  const away = rawAway === "" ? null : Number(rawAway);
+  const valid = (v: number | null) => v === null || (Number.isInteger(v) && v >= 0 && v <= 99);
+  if (!valid(home) || !valid(away)) return { error: "Invalid score" };
+  if (!["SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "FINISHED"].includes(status)) return { error: "Invalid status" };
+  await db.update(matches)
+    .set({ homeScore: home, awayScore: away, status })
+    .where(eq(matches.id, matchId));
+  revalidatePath("/", "layout");
   return undefined;
 }
