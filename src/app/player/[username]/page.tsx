@@ -80,7 +80,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
         </table>
         {rows.length === 0 && <p className="text-sm text-zinc-500">No matches have kicked off yet.</p>}
         <p className="mt-4 text-sm">
-          <Link href="/leaderboard" className="text-zinc-400 hover:text-white">← Back to leaderboard</Link>
+          <Link href="/leaderboard" className="inline-block text-zinc-400 transition hover:text-white active:opacity-60">← Back to leaderboard</Link>
         </p>
       </main>
     </>

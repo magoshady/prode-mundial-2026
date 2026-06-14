@@ -38,7 +38,7 @@ export default async function LeaderboardPage() {
                 <tr key={r.userId} className={`border-b border-zinc-800 ${r.userId === user.id ? "bg-zinc-900 font-semibold" : ""}`}>
                   <td className="px-2 py-3 text-center">{badge}</td>
                   <td className="px-2 py-3">
-                    <Link href={`/player/${r.username}`} className="hover:underline">{r.name}</Link>
+                    <Link href={`/player/${r.username}`} className="inline-block transition hover:underline active:opacity-60">{r.name}</Link>
                   </td>
                   <td className="px-2 py-3 text-right">{r.exact}</td>
                   <td className="px-2 py-3 text-right">{r.outcomes}</td>

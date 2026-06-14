@@ -22,3 +22,34 @@ body {
 html {
   color-scheme: dark;
 }
+
+/* Pending hint for <Link> navigation (via useLinkStatus). Reserves space and
+   stays invisible until a navigation takes longer than ~100ms, so fast
+   transitions don't flash. */
+.link-hint {
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  margin-left: 0.3rem;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.link-hint.is-pending {
+  visibility: visible;
+  animation-name: link-hint-fade, link-hint-pulse;
+  animation-duration: 200ms, 1s;
+  animation-delay: 100ms, 100ms;
+  animation-timing-function: ease, ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, none;
+}
+
+@keyframes link-hint-fade {
+  to { opacity: 0.7; }
+}
+@keyframes link-hint-pulse {
+  50% { opacity: 0.25; }
+}

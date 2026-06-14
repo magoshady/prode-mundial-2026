@@ -18,7 +18,7 @@ export default async function ComparePage() {
         <div className="space-y-2">
           {others.map((o) => (
             <Link key={o.id} href={`/compare/${o.username}`}
-              className="block rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 hover:border-zinc-600">
+              className="block rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 transition-colors hover:border-zinc-600 hover:bg-zinc-800/40 active:bg-zinc-800">
               {o.name} →
             </Link>
           ))}
