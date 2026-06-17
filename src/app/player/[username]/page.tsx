@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { matches, predictions, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isScoreable, othersVisible } from "@/lib/rules";
-import { predictionPoints } from "@/lib/scoring";
+import { goalsOff, predictionPoints } from "@/lib/scoring";
 import Nav from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
@@ -27,16 +27,19 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
   const preds = await db.query.predictions.findMany({ where: eq(predictions.userId, player.id) });
   const predByMatch = new Map(preds.map((p) => [p.matchId, p]));
 
-  let total = 0, exact = 0, outcomes = 0;
+  let total = 0, exact = 0, outcomes = 0, offTotal = 0;
   const rows = visible.map((m) => {
     const pred = predByMatch.get(m.id) ?? null;
-    const pts = isScoreable(m)
-      ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, { home: m.homeScore!, away: m.awayScore! })
-      : null;
+    const predPair = pred ? { home: pred.homeScore, away: pred.awayScore } : null;
+    const scoreable = isScoreable(m);
+    const result = { home: m.homeScore!, away: m.awayScore! };
+    const pts = scoreable ? predictionPoints(predPair, result) : null;
+    const off = scoreable ? goalsOff(predPair, result) : null;
     total += pts ?? 0;
     if (pts === 3) exact++;
     if (pts === 1) outcomes++;
-    return { m, pred, pts };
+    offTotal += off ?? 0;
+    return { m, pred, pts, off };
   });
 
   return (
@@ -45,7 +48,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
       <main className="mx-auto max-w-3xl p-4">
         <h1 className="mb-1 text-xl font-bold">{player.name}{player.id === me.id && " (you)"}</h1>
         <p className="mb-4 text-sm text-zinc-400">
-          {total} pts · {exact} exact · {outcomes} outcomes · played matches only
+          {total} pts · {exact} exact · {outcomes} outcomes · {offTotal} goals off · played matches only
         </p>
         <table className="w-full text-sm">
           <thead>
@@ -55,10 +58,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
               <th className="px-2 py-2 text-center">Result</th>
               <th className="px-2 py-2 text-center">Prediction</th>
               <th className="px-2 py-2 text-right">Pts</th>
+              <th className="px-2 py-2 text-right">Off</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ m, pred, pts }) => (
+            {rows.map(({ m, pred, pts, off }) => (
               <tr key={m.id} className="border-b border-zinc-800">
                 <td className="px-2 py-3 text-xs text-zinc-500">{fmt.format(m.kickoffUtc)}</td>
                 <td className="px-2 py-3">{m.homeTeam} vs {m.awayTeam}</td>
@@ -74,6 +78,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
                     </span>
                   )}
                 </td>
+                <td className="px-2 py-3 text-right text-zinc-400">{off !== null ? off : "—"}</td>
               </tr>
             ))}
           </tbody>
