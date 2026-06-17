@@ -7,3 +7,9 @@ export function predictionPoints(pred: ScorePair | null | undefined, result: Sco
   if (Math.sign(pred.home - pred.away) === Math.sign(result.home - result.away)) return 1;
   return 0;
 }
+
+/** Total goals away from reality: |Δhome| + |Δaway|. null when no prediction (skipped). */
+export function goalsOff(pred: ScorePair | null | undefined, result: ScorePair): number | null {
+  if (!pred) return null;
+  return Math.abs(pred.home - result.home) + Math.abs(pred.away - result.away);
+}
