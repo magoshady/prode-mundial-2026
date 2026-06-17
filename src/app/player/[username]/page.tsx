@@ -27,7 +27,6 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
   const preds = await db.query.predictions.findMany({ where: eq(predictions.userId, player.id) });
   const predByMatch = new Map(preds.map((p) => [p.matchId, p]));
 
-  let total = 0, exact = 0, outcomes = 0, offTotal = 0;
   const rows = visible.map((m) => {
     const pred = predByMatch.get(m.id) ?? null;
     const predPair = pred ? { home: pred.homeScore, away: pred.awayScore } : null;
@@ -35,12 +34,12 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
     const result = { home: m.homeScore!, away: m.awayScore! };
     const pts = scoreable ? predictionPoints(predPair, result) : null;
     const off = scoreable ? goalsOff(predPair, result) : null;
-    total += pts ?? 0;
-    if (pts === 3) exact++;
-    if (pts === 1) outcomes++;
-    offTotal += off ?? 0;
     return { m, pred, pts, off };
   });
+  const total = rows.reduce((s, r) => s + (r.pts ?? 0), 0);
+  const exact = rows.filter((r) => r.pts === 3).length;
+  const outcomes = rows.filter((r) => r.pts === 1).length;
+  const offTotal = rows.reduce((s, r) => s + (r.off ?? 0), 0);
 
   return (
     <>
