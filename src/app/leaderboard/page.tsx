@@ -19,7 +19,8 @@ export default async function LeaderboardPage() {
     <>
       <Nav name={user.name} isAdmin={user.isAdmin} />
       <main className="mx-auto max-w-2xl p-4">
-        <h1 className="mb-4 text-xl font-bold">Leaderboard</h1>
+        <h1 className="mb-1 text-xl font-bold">Leaderboard</h1>
+        <p className="mb-4 text-xs text-zinc-500">Goal Acc. = total goals off from the real scores (lower is better).</p>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-700 text-left text-zinc-400">
@@ -28,6 +29,7 @@ export default async function LeaderboardPage() {
               <th className="px-2 py-2 text-right">Exact (3)</th>
               <th className="px-2 py-2 text-right">Outcome (1)</th>
               <th className="px-2 py-2 text-right">Points</th>
+              <th className="px-2 py-2 text-right">Goal Acc.</th>
             </tr>
           </thead>
           <tbody>
@@ -43,6 +45,7 @@ export default async function LeaderboardPage() {
                   <td className="px-2 py-3 text-right">{r.exact}</td>
                   <td className="px-2 py-3 text-right">{r.outcomes}</td>
                   <td className="px-2 py-3 text-right text-base font-bold">{r.points}</td>
+                  <td className="px-2 py-3 text-right text-zinc-400">{r.goalsOff}</td>
                 </tr>
               );
             })}
