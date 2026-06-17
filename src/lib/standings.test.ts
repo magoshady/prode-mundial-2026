@@ -33,6 +33,18 @@ describe("computeStandings", () => {
     expect(rows[0].rank).toBe(1);
     expect(rows[1].rank).toBe(2);
   });
+  it("sums goals off, skips missing picks, and leaves rank unaffected", () => {
+    const rows = computeStandings(users, [m(10, 2, 0), m(11, 1, 1)], [
+      p(1, 10, 2, 0), p(1, 11, 0, 0), // A: off 0 + (|0-1|+|0-1|)=2 -> 2
+      p(2, 10, 1, 0), p(2, 11, 1, 1), // B: off (|1-2|+0)=1 + 0 -> 1
+      p(3, 10, 0, 1),                 // C: off (|0-2|+|1-0|)=3; match 11 missing -> skipped -> 3
+    ]);
+    const byUser = Object.fromEntries(rows.map((r) => [r.username, r.goalsOff]));
+    expect(byUser).toEqual({ a: 2, b: 1, c: 3 });
+    // Ranking still by points: A and B tie at 4 pts/1 exact, C last. goalsOff must not reorder.
+    expect(rows.map((r) => r.points)).toEqual([4, 4, 0]);
+    expect(rows[2].username).toBe("c");
+  });
   it("ignores unfinished matches", () => {
     const live = { ...m(10, 1, 0), status: "IN_PLAY" };
     const rows = computeStandings(users.slice(0, 1), [live], [p(1, 10, 1, 0)]);
