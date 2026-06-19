@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { computeStandings } from "@/lib/standings";
-import { GOLDEN_BOOT_CANDIDATES, isFieldLocked, PER_MATCH_BONUS_FROM, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
+import { allPicksSubmitted, GOLDEN_BOOT_CANDIDATES, isFieldLocked, PER_MATCH_BONUS_FROM, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
 import Nav from "@/components/Nav";
 import BonusForm from "@/components/BonusForm";
 
@@ -36,6 +36,13 @@ export default async function BonusPage() {
         timeZone: "America/Argentina/Buenos_Aires",
       }).format(deadline)
     : null;
+
+  // Reveal everyone's picks only once all have submitted (or the window closed) — no copying.
+  const reveal = allPicksSubmitted(allUsers.map((u) => u.id), picks) || deadlinePassed;
+  const picksByUser = new Map(picks.map((p) => [p.userId, p]));
+  const revealRows = allUsers
+    .map((u) => ({ name: u.name, p: picksByUser.get(u.id) ?? null }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const rows = computeStandings(allUsers, allMatches, allPreds, {
     picks,
@@ -80,6 +87,36 @@ export default async function BonusPage() {
             </ul>
           </section>
         )}
+
+        <section className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-sm">
+          <h2 className="mb-2 font-bold">Las elecciones de todos</h2>
+          {reveal ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-zinc-700 text-zinc-400">
+                    <th className="py-2 pr-3">Jugador</th>
+                    <th className="py-2 pr-3">🏆 Campeón</th>
+                    <th className="py-2 pr-3">👟 Botín</th>
+                    <th className="py-2">🐴 Tapado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revealRows.map(({ name, p }) => (
+                    <tr key={name} className={`border-b border-zinc-800 ${name === user.name ? "font-semibold text-zinc-100" : "text-zinc-300"}`}>
+                      <td className="py-2 pr-3">{name}{name === user.name && " (vos)"}</td>
+                      <td className="py-2 pr-3">{p?.championTeam ?? "—"}</td>
+                      <td className="py-2 pr-3">{p?.goldenBootPlayer ?? "—"}</td>
+                      <td className="py-2">{p?.darkHorseTeam ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-zinc-500">🔒 Se revelan cuando todos hayan elegido sus 3 (o cierre la ventana de 24h). Sin espiar.</p>
+          )}
+        </section>
 
         <section className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-300">
           <h2 className="mb-2 font-bold">Cómo se puntúa</h2>

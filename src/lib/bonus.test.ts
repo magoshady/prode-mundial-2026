@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  championPoints, goldenBootPoints, darkHorsePoints, picksDeadlinePassed, isFieldLocked,
+  championPoints, goldenBootPoints, darkHorsePoints, picksDeadlinePassed, isFieldLocked, allPicksSubmitted,
   UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES,
 } from "./bonus";
 
@@ -65,5 +65,21 @@ describe("picks deadline + per-field lock", () => {
   });
   it("any field is locked once the deadline passes", () => {
     expect(isFieldLocked(null, deadline, after)).toBe(true);
+  });
+});
+
+describe("allPicksSubmitted", () => {
+  const full = (userId: number) => ({ userId, championTeam: "Brazil", goldenBootPlayer: "Salah", darkHorseTeam: "Morocco" });
+  it("is true only when every user has all three picks", () => {
+    expect(allPicksSubmitted([1, 2], [full(1), full(2)])).toBe(true);
+  });
+  it("is false if a user is missing a row", () => {
+    expect(allPicksSubmitted([1, 2], [full(1)])).toBe(false);
+  });
+  it("is false if a user has an incomplete row", () => {
+    expect(allPicksSubmitted([1, 2], [full(1), { userId: 2, championTeam: "France", goldenBootPlayer: null, darkHorseTeam: "Japan" }])).toBe(false);
+  });
+  it("is false with no users", () => {
+    expect(allPicksSubmitted([], [])).toBe(false);
   });
 });

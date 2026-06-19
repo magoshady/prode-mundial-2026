@@ -44,6 +44,18 @@ export function isFieldLocked(currentValue: string | null, deadline: Date | null
   return currentValue != null || picksDeadlinePassed(deadline, now);
 }
 
+type PickRow = { userId: number; championTeam: string | null; goldenBootPlayer: string | null; darkHorseTeam: string | null };
+
+/** True only when every user has all three picks set — gate for revealing the summary. */
+export function allPicksSubmitted(userIds: number[], picks: PickRow[]): boolean {
+  if (userIds.length === 0) return false;
+  const byUser = new Map(picks.map((p) => [p.userId, p]));
+  return userIds.every((id) => {
+    const p = byUser.get(id);
+    return !!(p && p.championTeam && p.goldenBootPlayer && p.darkHorseTeam);
+  });
+}
+
 export function championPoints(pick: string | null, championTeam: string | null): number {
   return pick && championTeam && pick === championTeam ? CHAMPION_POINTS : 0;
 }
