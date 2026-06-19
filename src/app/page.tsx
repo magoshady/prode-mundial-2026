@@ -18,6 +18,10 @@ const fmt = new Intl.DateTimeFormat("en-GB", {
   weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires",
 });
 
+// Matches whose kickoff is more than this many hours in the past are tucked
+// into a collapsed "Past matches" dropdown so the live/upcoming games stay on top.
+const PAST_THRESHOLD_MS = 30 * 60 * 60 * 1000;
+
 export default async function FixturePage() {
   const user = await requireUser();
   const now = new Date();
@@ -36,65 +40,83 @@ export default async function FixturePage() {
     predsByMatch.set(p.matchId, arr);
   }
 
-  const stages = STAGE_ORDER.map((s) => ({ stage: s, items: all.filter((m) => m.stage === s) }))
-    .filter((g) => g.items.length > 0);
+  type Match = (typeof all)[number];
+  const isPast = (m: Match) => now.getTime() - m.kickoffUtc.getTime() > PAST_THRESHOLD_MS;
+  const past = all.filter(isPast);
+  const current = all.filter((m) => !isPast(m));
+
+  const groupByStage = (items: Match[]) =>
+    STAGE_ORDER.map((s) => ({ stage: s, items: items.filter((m) => m.stage === s) }))
+      .filter((g) => g.items.length > 0);
+
+  const renderMatch = (m: Match) => {
+    const pred = predByMatch.get(m.id) ?? null;
+    const open = isOpenForPrediction(m, now);
+    const scoreable = isScoreable(m);
+    const result = scoreable ? { home: m.homeScore!, away: m.awayScore! } : null;
+    const myPts = result
+      ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, result)
+      : null;
+
+    // Everyone's picks are revealed once the match kicks off.
+    let others: OtherPred[] | null = null;
+    if (othersVisible(m, now)) {
+      const matchPreds = predsByMatch.get(m.id) ?? [];
+      others = allUsers.map((u) => {
+        const p = matchPreds.find((x) => x.userId === u.id) ?? null;
+        return {
+          name: u.name,
+          isMe: u.id === user.id,
+          home: p?.homeScore ?? null,
+          away: p?.awayScore ?? null,
+          pts: result ? predictionPoints(p ? { home: p.homeScore, away: p.awayScore } : null, result) : null,
+        };
+      });
+      others.sort((a, b) => (b.pts ?? -1) - (a.pts ?? -1) || a.name.localeCompare(b.name));
+    }
+
+    return (
+      <MatchRow
+        key={m.id}
+        matchId={m.id}
+        dateLabel={fmt.format(m.kickoffUtc)}
+        groupLabel={m.groupName ? m.groupName.replace("_", " ") : null}
+        homeTeam={m.homeTeam ?? "TBD"}
+        awayTeam={m.awayTeam ?? "TBD"}
+        status={m.status}
+        homeScore={m.homeScore}
+        awayScore={m.awayScore}
+        open={open}
+        scoreable={scoreable}
+        mine={pred ? { home: pred.homeScore, away: pred.awayScore } : null}
+        myPts={myPts}
+        others={others}
+      />
+    );
+  };
+
+  const renderStages = (items: Match[]) =>
+    groupByStage(items).map(({ stage, items }) => (
+      <section key={stage}>
+        <h2 className="mb-3 text-lg font-bold">{STAGE_LABEL[stage] ?? stage}</h2>
+        <div className="space-y-1.5">{items.map(renderMatch)}</div>
+      </section>
+    ));
 
   return (
     <>
       <Nav name={user.name} isAdmin={user.isAdmin} />
       <main className="mx-auto max-w-4xl space-y-8 p-4">
-        {stages.map(({ stage, items }) => (
-          <section key={stage}>
-            <h2 className="mb-3 text-lg font-bold">{STAGE_LABEL[stage] ?? stage}</h2>
-            <div className="space-y-1.5">
-              {items.map((m) => {
-                const pred = predByMatch.get(m.id) ?? null;
-                const open = isOpenForPrediction(m, now);
-                const scoreable = isScoreable(m);
-                const result = scoreable ? { home: m.homeScore!, away: m.awayScore! } : null;
-                const myPts = result
-                  ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, result)
-                  : null;
-
-                // Everyone's picks are revealed once the match kicks off.
-                let others: OtherPred[] | null = null;
-                if (othersVisible(m, now)) {
-                  const matchPreds = predsByMatch.get(m.id) ?? [];
-                  others = allUsers.map((u) => {
-                    const p = matchPreds.find((x) => x.userId === u.id) ?? null;
-                    return {
-                      name: u.name,
-                      isMe: u.id === user.id,
-                      home: p?.homeScore ?? null,
-                      away: p?.awayScore ?? null,
-                      pts: result ? predictionPoints(p ? { home: p.homeScore, away: p.awayScore } : null, result) : null,
-                    };
-                  });
-                  others.sort((a, b) => (b.pts ?? -1) - (a.pts ?? -1) || a.name.localeCompare(b.name));
-                }
-
-                return (
-                  <MatchRow
-                    key={m.id}
-                    matchId={m.id}
-                    dateLabel={fmt.format(m.kickoffUtc)}
-                    groupLabel={m.groupName ? m.groupName.replace("_", " ") : null}
-                    homeTeam={m.homeTeam ?? "TBD"}
-                    awayTeam={m.awayTeam ?? "TBD"}
-                    status={m.status}
-                    homeScore={m.homeScore}
-                    awayScore={m.awayScore}
-                    open={open}
-                    scoreable={scoreable}
-                    mine={pred ? { home: pred.homeScore, away: pred.awayScore } : null}
-                    myPts={myPts}
-                    others={others}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        ))}
+        {past.length > 0 && (
+          <details className="rounded-lg border border-black/10 dark:border-white/15">
+            <summary className="cursor-pointer list-none px-4 py-3 text-lg font-bold [&::-webkit-details-marker]:hidden">
+              <span className="mr-1 inline-block transition-transform [details[open]_&]:rotate-90">›</span>
+              Past matches ({past.length})
+            </summary>
+            <div className="space-y-8 px-4 pb-4">{renderStages(past)}</div>
+          </details>
+        )}
+        {renderStages(current)}
       </main>
     </>
   );
