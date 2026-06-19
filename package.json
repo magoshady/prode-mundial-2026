@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "pick-double": "tsx --env-file=.env.local scripts/pick-double.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

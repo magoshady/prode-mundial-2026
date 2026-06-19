@@ -1,9 +1,10 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { matches } from "@/db/schema";
+import { matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
+import { isDoubleRevealed } from "@/lib/double";
 import Nav from "@/components/Nav";
 import MatchRow, { type OtherPred } from "@/components/MatchRow";
 
@@ -25,11 +26,13 @@ const PAST_THRESHOLD_MS = 30 * 60 * 60 * 1000;
 export default async function FixturePage() {
   const user = await requireUser();
   const now = new Date();
-  const [all, allUsers, allPreds] = await Promise.all([
+  const [all, allUsers, allPreds, doubleRow] = await Promise.all([
     db.query.matches.findMany({ orderBy: [asc(matches.kickoffUtc), asc(matches.id)] }),
     db.query.users.findMany(),
     db.query.predictions.findMany(),
+    db.query.meta.findFirst({ where: eq(meta.key, "double_match_id") }),
   ]);
+  const doubleMatchId = doubleRow?.value ? Number(doubleRow.value) : null;
 
   const myPreds = allPreds.filter((p) => p.userId === user.id);
   const predByMatch = new Map(myPreds.map((p) => [p.matchId, p]));
@@ -91,6 +94,7 @@ export default async function FixturePage() {
         mine={pred ? { home: pred.homeScore, away: pred.awayScore } : null}
         myPts={myPts}
         others={others}
+        double={isDoubleRevealed(m.id, doubleMatchId, m.status)}
       />
     );
   };

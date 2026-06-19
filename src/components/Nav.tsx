@@ -9,6 +9,7 @@ export default function Nav({ name, isAdmin }: { name: string; isAdmin: boolean 
         <NavLink href="/" className="text-zinc-300 hover:text-white">Fixture</NavLink>
         <NavLink href="/leaderboard" className="text-zinc-300 hover:text-white">Leaderboard</NavLink>
         <NavLink href="/compare" className="text-zinc-300 hover:text-white">Compare</NavLink>
+        <NavLink href="/bonus" className="text-zinc-300 hover:text-white">Bonus</NavLink>
         {isAdmin && <NavLink href="/admin" className="text-zinc-300 hover:text-white">Admin</NavLink>}
         <span className="ml-auto text-zinc-400">{name}</span>
         <form action={logout}>

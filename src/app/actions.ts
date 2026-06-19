@@ -1,13 +1,14 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { matches, predictions, users } from "@/db/schema";
+import { bonusPicks, matches, meta, predictions, users } from "@/db/schema";
 import { createSession, destroySession, requireUser } from "@/lib/auth";
 import { isOpenForPrediction } from "@/lib/rules";
+import { GOLDEN_BOOT_CANDIDATES, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
 import { syncMatches } from "@/lib/sync";
 
 export type FormState = { error?: string } | undefined;
@@ -72,4 +73,59 @@ export async function adminUpdateResult(matchId: number, _prev: FormState, formD
     .where(eq(matches.id, matchId));
   revalidatePath("/", "layout");
   return undefined;
+}
+
+export async function saveBonusPicks(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const [allMatches, existing, deadlineRow] = await Promise.all([
+    db.query.matches.findMany(),
+    db.query.bonusPicks.findFirst({ where: eq(bonusPicks.userId, user.id) }),
+    db.query.meta.findFirst({ where: eq(meta.key, "bonus_picks_deadline") }),
+  ]);
+  const now = new Date();
+  const deadline = deadlineRow?.value ? new Date(deadlineRow.value) : null;
+  if (picksDeadlinePassed(deadline, now)) {
+    return { error: "Se cerró la ventana de 24h — las elecciones están bloqueadas." };
+  }
+
+  const champion = String(formData.get("champion") ?? "").trim() || null;
+  const goldenBoot = String(formData.get("goldenBoot") ?? "").trim() || null;
+  const darkHorse = String(formData.get("darkHorse") ?? "").trim() || null;
+
+  // Each pick is final once set: keep the stored value and ignore any change. Only validate
+  // (and accept) fields the user is still allowed to set.
+  const teamNames = new Set(
+    allMatches.flatMap((m) => [m.homeTeam, m.awayTeam].filter(Boolean) as string[]),
+  );
+  if (existing?.championTeam == null && champion && !teamNames.has(champion)) return { error: "Unknown champion pick" };
+  if (existing?.darkHorseTeam == null && darkHorse && !UNDERDOG_TEAMS.includes(darkHorse)) return { error: "Dark horse must be from the underdog pool" };
+  if (existing?.goldenBootPlayer == null && goldenBoot && !GOLDEN_BOOT_CANDIDATES.includes(goldenBoot)) return { error: "Unknown golden boot pick" };
+
+  const finalChampion = existing?.championTeam ?? champion;
+  const finalGoldenBoot = existing?.goldenBootPlayer ?? goldenBoot;
+  const finalDarkHorse = existing?.darkHorseTeam ?? darkHorse;
+
+  await db.insert(bonusPicks)
+    .values({ userId: user.id, championTeam: finalChampion, goldenBootPlayer: finalGoldenBoot, darkHorseTeam: finalDarkHorse, updatedAt: now })
+    .onConflictDoUpdate({
+      target: bonusPicks.userId,
+      set: { championTeam: finalChampion, goldenBootPlayer: finalGoldenBoot, darkHorseTeam: finalDarkHorse, updatedAt: now },
+    });
+  revalidatePath("/bonus");
+  return undefined;
+}
+
+export async function adminSetBonusResults(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  if (!user.isAdmin) return;
+  const champion = String(formData.get("championTeam") ?? "").trim();
+  const goldenBoot = String(formData.get("goldenBootWinner") ?? "").trim();
+  const upsert = async (key: string, value: string) => {
+    if (!value) return;
+    await db.insert(meta).values({ key, value })
+      .onConflictDoUpdate({ target: meta.key, set: { value: sql`excluded.value` } });
+  };
+  await upsert("champion_team", champion);
+  await upsert("golden_boot_winner", goldenBoot);
+  revalidatePath("/", "layout");
 }

@@ -24,7 +24,6 @@ export default async function CompareUserPage({ params }: { params: Promise<{ us
   });
   const find = (uid: number, mid: number) => preds.find((p) => p.userId === uid && p.matchId === mid) ?? null;
 
-  let myTotal = 0, theirTotal = 0;
   const rows = visible.map((m) => {
     const mine = find(me.id, m.id);
     const theirs = find(them.id, m.id);
@@ -32,10 +31,10 @@ export default async function CompareUserPage({ params }: { params: Promise<{ us
     const result = scoreable ? { home: m.homeScore!, away: m.awayScore! } : null;
     const myPts = result ? predictionPoints(mine ? { home: mine.homeScore, away: mine.awayScore } : null, result) : null;
     const theirPts = result ? predictionPoints(theirs ? { home: theirs.homeScore, away: theirs.awayScore } : null, result) : null;
-    myTotal += myPts ?? 0;
-    theirTotal += theirPts ?? 0;
     return { m, mine, theirs, myPts, theirPts };
   });
+  const myTotal = rows.reduce((s, r) => s + (r.myPts ?? 0), 0);
+  const theirTotal = rows.reduce((s, r) => s + (r.theirPts ?? 0), 0);
 
   const Pts = ({ v }: { v: number | null }) =>
     v === null ? null : (

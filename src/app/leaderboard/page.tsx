@@ -1,19 +1,31 @@
 import Link from "next/link";
+import { inArray } from "drizzle-orm";
 import { db } from "@/db";
+import { meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { computeStandings } from "@/lib/standings";
+import { PER_MATCH_BONUS_FROM } from "@/lib/bonus";
 import Nav from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
   const user = await requireUser();
-  const [allUsers, allMatches, allPreds] = await Promise.all([
+  const [allUsers, allMatches, allPreds, picks, metaRows] = await Promise.all([
     db.query.users.findMany(),
     db.query.matches.findMany(),
     db.query.predictions.findMany(),
+    db.query.bonusPicks.findMany(),
+    db.query.meta.findMany({ where: inArray(meta.key, ["champion_team", "golden_boot_winner", "double_match_id"]) }),
   ]);
-  const rows = computeStandings(allUsers, allMatches, allPreds);
+  const metaMap = Object.fromEntries(metaRows.map((r) => [r.key, r.value]));
+  const rows = computeStandings(allUsers, allMatches, allPreds, {
+    picks,
+    championTeam: metaMap["champion_team"] ?? null,
+    goldenBootWinner: metaMap["golden_boot_winner"] ?? null,
+    doubleMatchId: metaMap["double_match_id"] ? Number(metaMap["double_match_id"]) : null,
+    perMatchBonusFrom: PER_MATCH_BONUS_FROM,
+  });
 
   return (
     <>
@@ -28,6 +40,7 @@ export default async function LeaderboardPage() {
               <th className="px-2 py-2">Player</th>
               <th className="px-2 py-2 text-right">Exact (3)</th>
               <th className="px-2 py-2 text-right">Outcome (1)</th>
+              <th className="px-2 py-2 text-right">Bonus</th>
               <th className="px-2 py-2 text-right">Points</th>
               <th className="px-2 py-2 text-right">Goal Acc.</th>
             </tr>
@@ -44,6 +57,7 @@ export default async function LeaderboardPage() {
                   </td>
                   <td className="px-2 py-3 text-right">{r.exact}</td>
                   <td className="px-2 py-3 text-right">{r.outcomes}</td>
+                  <td className="px-2 py-3 text-right text-zinc-400">{r.bonus.total || "—"}</td>
                   <td className="px-2 py-3 text-right text-base font-bold">{r.points}</td>
                   <td className="px-2 py-3 text-right text-zinc-400">{r.goalsOff}</td>
                 </tr>

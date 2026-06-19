@@ -33,6 +33,14 @@ export const predictions = pgTable(
   (t) => [uniqueIndex("predictions_user_match").on(t.userId, t.matchId)],
 );
 
+export const bonusPicks = pgTable("bonus_picks", {
+  userId: integer("user_id").primaryKey().references(() => users.id),
+  championTeam: text("champion_team"),
+  goldenBootPlayer: text("golden_boot_player"),
+  darkHorseTeam: text("dark_horse_team"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const meta = pgTable("meta", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),

@@ -26,6 +26,8 @@ type Props = {
   myPts: number | null;
   /** Everyone's predictions, or null while still hidden (before kickoff). */
   others: OtherPred[] | null;
+  /** Revealed only after the secret double-points match has finished. */
+  double?: boolean;
 };
 
 function Badge({ v }: { v: number }) {
@@ -38,7 +40,7 @@ function Badge({ v }: { v: number }) {
 
 export default function MatchRow({
   matchId, dateLabel, groupLabel, homeTeam, awayTeam, status, homeScore, awayScore,
-  open, scoreable, mine, myPts, others,
+  open, scoreable, mine, myPts, others, double,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const canExpand = others !== null && others.length > 0;
@@ -52,6 +54,9 @@ export default function MatchRow({
       </span>
       <span className="min-w-0 flex-1">
         {homeTeam} <span className="text-zinc-500">vs</span> {awayTeam}
+        {double && (
+          <span className="ml-2 rounded bg-fuchsia-700 px-1.5 py-0.5 text-xs font-bold">⭐ DOBLE</span>
+        )}
         {live ? (
           <span className="ml-2 font-bold text-amber-400">{homeScore}-{awayScore} LIVE</span>
         ) : status === "FINISHED" ? (

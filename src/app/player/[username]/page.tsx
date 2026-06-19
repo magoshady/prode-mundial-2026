@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { matches, predictions, users } from "@/db/schema";
+import { matches, meta, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isScoreable, othersVisible } from "@/lib/rules";
 import { goalsOff, predictionPoints } from "@/lib/scoring";
+import { computeStandings } from "@/lib/standings";
+import { PER_MATCH_BONUS_FROM } from "@/lib/bonus";
 import Nav from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +23,33 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
   if (!player) notFound();
 
   const now = new Date();
-  const all = await db.query.matches.findMany({ orderBy: [asc(matches.kickoffUtc), asc(matches.id)] });
+  const [all, allUsers, allPreds, picks, metaRows] = await Promise.all([
+    db.query.matches.findMany({ orderBy: [asc(matches.kickoffUtc), asc(matches.id)] }),
+    db.query.users.findMany(),
+    db.query.predictions.findMany(),
+    db.query.bonusPicks.findMany(),
+    db.query.meta.findMany({ where: inArray(meta.key, ["champion_team", "golden_boot_winner", "double_match_id"]) }),
+  ]);
+  const metaMap = Object.fromEntries(metaRows.map((r) => [r.key, r.value]));
+  // Headline total comes from the same standings the leaderboard uses, so they reconcile.
+  const standing = computeStandings(allUsers, all, allPreds, {
+    picks,
+    championTeam: metaMap["champion_team"] ?? null,
+    goldenBootWinner: metaMap["golden_boot_winner"] ?? null,
+    doubleMatchId: metaMap["double_match_id"] ? Number(metaMap["double_match_id"]) : null,
+    perMatchBonusFrom: PER_MATCH_BONUS_FROM,
+  }).find((r) => r.userId === player.id);
+  const total = standing?.points ?? 0;
+  const exact = standing?.exact ?? 0;
+  const outcomes = standing?.outcomes ?? 0;
+  const offTotal = standing?.goalsOff ?? 0;
+  const bonusTotal = standing?.bonus.total ?? 0;
+
   // Same visibility rule as compare: predictions only show once the match kicks off.
   const visible = all.filter((m) => othersVisible(m, now));
-  const preds = await db.query.predictions.findMany({ where: eq(predictions.userId, player.id) });
-  const predByMatch = new Map(preds.map((p) => [p.matchId, p]));
+  const predByMatch = new Map(allPreds.filter((p) => p.userId === player.id).map((p) => [p.matchId, p]));
 
-  const rows = visible.map((m) => {
+  const matchRows = visible.map((m) => {
     const pred = predByMatch.get(m.id) ?? null;
     const predPair = pred ? { home: pred.homeScore, away: pred.awayScore } : null;
     const scoreable = isScoreable(m);
@@ -36,10 +58,6 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
     const off = scoreable ? goalsOff(predPair, result) : null;
     return { m, pred, pts, off };
   });
-  const total = rows.reduce((s, r) => s + (r.pts ?? 0), 0);
-  const exact = rows.filter((r) => r.pts === 3).length;
-  const outcomes = rows.filter((r) => r.pts === 1).length;
-  const offTotal = rows.reduce((s, r) => s + (r.off ?? 0), 0);
 
   return (
     <>
@@ -47,7 +65,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
       <main className="mx-auto max-w-3xl p-4">
         <h1 className="mb-1 text-xl font-bold">{player.name}{player.id === me.id && " (you)"}</h1>
         <p className="mb-4 text-sm text-zinc-400">
-          {total} pts · {exact} exact · {outcomes} outcomes · {offTotal} goals off · played matches only
+          {total} pts · {exact} exact · {outcomes} outcomes · {bonusTotal} bonus · {offTotal} goals off
         </p>
         <table className="w-full text-sm">
           <thead>
@@ -61,7 +79,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ m, pred, pts, off }) => (
+            {matchRows.map(({ m, pred, pts, off }) => (
               <tr key={m.id} className="border-b border-zinc-800">
                 <td className="px-2 py-3 text-xs text-zinc-500">{fmt.format(m.kickoffUtc)}</td>
                 <td className="px-2 py-3">{m.homeTeam} vs {m.awayTeam}</td>
@@ -82,7 +100,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && <p className="text-sm text-zinc-500">No matches have kicked off yet.</p>}
+        {matchRows.length === 0 && <p className="text-sm text-zinc-500">No matches have kicked off yet.</p>}
         <p className="mt-4 text-sm">
           <Link href="/leaderboard" className="inline-block text-zinc-400 transition hover:text-white active:opacity-60">← Back to leaderboard</Link>
         </p>
