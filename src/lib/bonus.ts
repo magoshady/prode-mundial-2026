@@ -1,8 +1,8 @@
-/** Dark Horse selectable pool — confirmed against the live 48-team field. API name strings. */
+/** Dark Horse selectable pool — true long-shots, using exact API name strings. */
 export const UNDERDOG_TEAMS: readonly string[] = [
-  "Morocco", "Croatia", "Uruguay", "Colombia", "Japan", "Senegal", "Mexico",
-  "United States", "Switzerland", "South Korea", "Ecuador", "Norway", "Turkey",
-  "Ivory Coast", "Egypt", "Australia",
+  "Czechia", "South Africa", "Bosnia-Herzegovina", "Scotland", "Paraguay", "Sweden",
+  "New Zealand", "Iran", "Saudi Arabia", "Iraq", "Austria", "Jordan", "Algeria",
+  "Congo DR", "Uzbekistan", "Ghana", "Panama",
 ];
 
 /** Golden Boot shortlist. Functional default — edit names freely; must match the

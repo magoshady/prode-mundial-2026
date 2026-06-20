@@ -5,9 +5,10 @@ import {
 } from "./bonus";
 
 describe("curated lists", () => {
-  it("has the 16-team underdog pool and a non-empty golden boot shortlist", () => {
-    expect(UNDERDOG_TEAMS).toHaveLength(16);
-    expect(UNDERDOG_TEAMS).toContain("Morocco");
+  it("has the long-shot underdog pool and a non-empty golden boot shortlist", () => {
+    expect(UNDERDOG_TEAMS).toHaveLength(17);
+    expect(UNDERDOG_TEAMS).toContain("Czechia");
+    expect(UNDERDOG_TEAMS).not.toContain("Morocco");
     expect(GOLDEN_BOOT_CANDIDATES.length).toBeGreaterThan(0);
   });
 });
