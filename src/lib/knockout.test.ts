@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   knockoutPoints,
+  knockoutScoreLabel,
   toKnockoutResult,
   toKnockoutPrediction,
   normalizeKnockoutPrediction,
   type KnockoutPrediction,
   type KnockoutResult,
+  type KnockoutScoreFields,
 } from "./knockout";
 
 const pred = (
@@ -28,6 +30,33 @@ const res = (
   etAgg: etAgg ? { home: etAgg[0], away: etAgg[1] } : null,
   duration,
   winner,
+});
+
+describe("knockoutScoreLabel", () => {
+  const base: KnockoutScoreFields = {
+    regHome: null, regAway: null,
+    etHome: null, etAway: null,
+    penHome: null, penAway: null,
+    duration: null,
+  };
+
+  it("returns null when regHome is null", () => {
+    expect(knockoutScoreLabel({ ...base })).toBeNull();
+  });
+
+  it("REGULAR decided in 90' → plain score", () => {
+    expect(knockoutScoreLabel({ ...base, regHome: 1, regAway: 0, duration: "REGULAR" })).toBe("1-0");
+  });
+
+  it("EXTRA_TIME → includes a.e.t. aggregate", () => {
+    expect(knockoutScoreLabel({ ...base, regHome: 1, regAway: 1, etHome: 1, etAway: 0, duration: "EXTRA_TIME" }))
+      .toBe("1-1 (2-1 a.e.t.)");
+  });
+
+  it("PENALTY_SHOOTOUT → includes a.e.t. and penalties", () => {
+    expect(knockoutScoreLabel({ ...base, regHome: 0, regAway: 0, etHome: 0, etAway: 0, penHome: 4, penAway: 3, duration: "PENALTY_SHOOTOUT" }))
+      .toBe("0-0 (0-0 a.e.t., 4-3 pen.)");
+  });
 });
 
 describe("knockoutPoints", () => {

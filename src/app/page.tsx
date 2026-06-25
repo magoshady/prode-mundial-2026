@@ -4,7 +4,7 @@ import { matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
-import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
+import { knockoutPoints, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { isDoubleRevealed } from "@/lib/double";
 import Nav from "@/components/Nav";
 import MatchRow, { type OtherPred } from "@/components/MatchRow";
@@ -67,20 +67,9 @@ export default async function FixturePage() {
     const koPts = (row: { homeScore: number; awayScore: number; etHomeScore: number | null; etAwayScore: number | null; penAdvance: string | null } | null) =>
       koResult ? knockoutPoints(row ? toKnockoutPrediction(row) : null, koResult).total : null;
 
-    const finalScoreLabel = (() => {
-      if (!knockout || m.status !== "FINISHED" || m.regularTimeHome === null) return null;
-      let s = `${m.regularTimeHome}-${m.regularTimeAway}`;
-      if (m.duration !== "REGULAR" && m.extraTimeHome !== null) {
-        const aggHome = m.regularTimeHome + m.extraTimeHome;
-        const aggAway = (m.regularTimeAway ?? 0) + (m.extraTimeAway ?? 0);
-        s += ` (${aggHome}-${aggAway} a.e.t.`;
-        if (m.duration === "PENALTY_SHOOTOUT" && m.penaltiesHome !== null) {
-          s += `, ${m.penaltiesHome}-${m.penaltiesAway} pen.`;
-        }
-        s += ")";
-      }
-      return s;
-    })();
+    const finalScoreLabel = knockout && m.status === "FINISHED"
+      ? knockoutScoreLabel({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, penHome: m.penaltiesHome, penAway: m.penaltiesAway, duration: m.duration })
+      : null;
 
     const myPts = knockout
       ? koPts(pred)

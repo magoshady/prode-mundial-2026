@@ -6,7 +6,7 @@ import { matches, meta, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isScoreable, othersVisible } from "@/lib/rules";
 import { goalsOff, predictionPoints } from "@/lib/scoring";
-import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
+import { knockoutPoints, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { computeStandings } from "@/lib/standings";
 import { PER_MATCH_BONUS_FROM } from "@/lib/bonus";
 import Nav from "@/components/Nav";
@@ -61,10 +61,14 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
       const predLabel = pred
         ? `${pred.homeScore}-${pred.awayScore}${pred.etHomeScore !== null ? ` (${pred.etHomeScore}-${pred.etAwayScore} aet${pred.penAdvance ? `, pen ${pred.penAdvance === "HOME" ? m.homeTeam : m.awayTeam}` : ""})` : ""}`
         : null;
-      const resultLabel = koResult
-        ? `${koResult.reg.home}-${koResult.reg.away}${koResult.etAgg ? ` (${koResult.etAgg.home}-${koResult.etAgg.away} aet)` : ""}`
-        : (m.regularTimeHome !== null ? `${m.regularTimeHome}-${m.regularTimeAway}` : "—");
-      return { m, predLabel, resultLabel, pts, off: null as number | null };
+      const off = koResult ? goalsOff(koPred?.reg ?? null, koResult.reg) : null;
+      const resultLabel = knockoutScoreLabel({
+        regHome: m.regularTimeHome, regAway: m.regularTimeAway,
+        etHome: m.extraTimeHome, etAway: m.extraTimeAway,
+        penHome: m.penaltiesHome, penAway: m.penaltiesAway,
+        duration: m.duration,
+      }) ?? (m.regularTimeHome !== null ? `${m.regularTimeHome}-${m.regularTimeAway}` : "—");
+      return { m, predLabel, resultLabel, pts, off };
     }
 
     const predPair = pred ? { home: pred.homeScore, away: pred.awayScore } : null;

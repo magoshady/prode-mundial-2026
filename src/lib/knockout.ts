@@ -102,6 +102,29 @@ export function toKnockoutPrediction(p: KnockoutPredFields): KnockoutPrediction 
   return { reg: { home: p.homeScore, away: p.awayScore }, et, penAdvance };
 }
 
+export type KnockoutScoreFields = {
+  regHome: number | null; regAway: number | null;
+  etHome: number | null; etAway: number | null;
+  penHome: number | null; penAway: number | null;
+  duration: string | null;
+};
+
+/** Played-out knockout score, e.g. "0-0 (0-0 a.e.t., 4-3 pen.)", or null if no 90' score yet. */
+export function knockoutScoreLabel(m: KnockoutScoreFields): string | null {
+  if (m.regHome === null || m.regAway === null) return null;
+  let s = `${m.regHome}-${m.regAway}`;
+  if (m.duration !== "REGULAR" && m.etHome !== null) {
+    const aggHome = m.regHome + m.etHome;
+    const aggAway = (m.regAway ?? 0) + (m.etAway ?? 0);
+    s += ` (${aggHome}-${aggAway} a.e.t.`;
+    if (m.duration === "PENALTY_SHOOTOUT" && m.penHome !== null) {
+      s += `, ${m.penHome}-${m.penAway} pen.`;
+    }
+    s += ")";
+  }
+  return s;
+}
+
 export type RawPredictionInput = {
   isKnockout: boolean;
   home: number;
