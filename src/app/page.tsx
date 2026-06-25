@@ -71,9 +71,14 @@ export default async function FixturePage() {
       if (!knockout || m.status !== "FINISHED" || m.regularTimeHome === null) return null;
       let s = `${m.regularTimeHome}-${m.regularTimeAway}`;
       if (m.duration !== "REGULAR" && m.extraTimeHome !== null) {
-        s = `${m.regularTimeHome + m.extraTimeHome}-${(m.regularTimeAway ?? 0) + (m.extraTimeAway ?? 0)} a.e.t.`;
+        const aggHome = m.regularTimeHome + m.extraTimeHome;
+        const aggAway = (m.regularTimeAway ?? 0) + (m.extraTimeAway ?? 0);
+        s += ` (${aggHome}-${aggAway} a.e.t.`;
+        if (m.duration === "PENALTY_SHOOTOUT" && m.penaltiesHome !== null) {
+          s += `, ${m.penaltiesHome}-${m.penaltiesAway} pen.`;
+        }
+        s += ")";
       }
-      if (m.duration === "PENALTY_SHOOTOUT" && m.penaltiesHome !== null) s += ` (${m.penaltiesHome}-${m.penaltiesAway} pen.)`;
       return s;
     })();
 
