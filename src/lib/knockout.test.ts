@@ -3,6 +3,7 @@ import {
   knockoutPoints,
   toKnockoutResult,
   toKnockoutPrediction,
+  normalizeKnockoutPrediction,
   type KnockoutPrediction,
   type KnockoutResult,
 } from "./knockout";
@@ -122,5 +123,46 @@ describe("toKnockoutPrediction", () => {
     expect(
       toKnockoutPrediction({ homeScore: 1, awayScore: 1, etHomeScore: 2, etAwayScore: 2, penAdvance: "AWAY" }),
     ).toEqual({ reg: { home: 1, away: 1 }, et: { home: 2, away: 2 }, penAdvance: "AWAY" });
+  });
+});
+
+describe("normalizeKnockoutPrediction", () => {
+  const base = { isKnockout: true, etHome: null, etAway: null, penAdvance: null } as const;
+
+  it("rejects out-of-range 90' scores", () => {
+    expect(normalizeKnockoutPrediction({ ...base, home: -1, away: 0 }).ok).toBe(false);
+    expect(normalizeKnockoutPrediction({ ...base, home: 0, away: 100 }).ok).toBe(false);
+  });
+
+  it("group-stage input ignores ET/pen fields", () => {
+    const out = normalizeKnockoutPrediction({ isKnockout: false, home: 1, away: 1, etHome: 2, etAway: 2, penAdvance: "HOME" });
+    expect(out).toEqual({ ok: true, value: { homeScore: 1, awayScore: 1, etHomeScore: null, etAwayScore: null, penAdvance: null } });
+  });
+
+  it("knockout decisive 90' drops any ET/pen fields", () => {
+    const out = normalizeKnockoutPrediction({ isKnockout: true, home: 2, away: 1, etHome: 3, etAway: 3, penAdvance: "HOME" });
+    expect(out).toEqual({ ok: true, value: { homeScore: 2, awayScore: 1, etHomeScore: null, etAwayScore: null, penAdvance: null } });
+  });
+
+  it("knockout 90' draw requires an ET aggregate", () => {
+    expect(normalizeKnockoutPrediction({ ...base, home: 1, away: 1 }).ok).toBe(false);
+  });
+
+  it("ET aggregate cannot be lower than the 90' score per side", () => {
+    expect(normalizeKnockoutPrediction({ ...base, home: 1, away: 1, etHome: 0, etAway: 1 }).ok).toBe(false);
+  });
+
+  it("knockout 90' draw + decisive ET stores ET, no pen pick", () => {
+    const out = normalizeKnockoutPrediction({ ...base, home: 1, away: 1, etHome: 2, etAway: 1 });
+    expect(out).toEqual({ ok: true, value: { homeScore: 1, awayScore: 1, etHomeScore: 2, etAwayScore: 1, penAdvance: null } });
+  });
+
+  it("knockout ET draw requires a penalty pick", () => {
+    expect(normalizeKnockoutPrediction({ ...base, home: 1, away: 1, etHome: 2, etAway: 2 }).ok).toBe(false);
+  });
+
+  it("knockout ET draw + pen pick is accepted", () => {
+    const out = normalizeKnockoutPrediction({ ...base, home: 0, away: 0, etHome: 1, etAway: 1, penAdvance: "AWAY" });
+    expect(out).toEqual({ ok: true, value: { homeScore: 0, awayScore: 0, etHomeScore: 1, etAwayScore: 1, penAdvance: "AWAY" } });
   });
 });

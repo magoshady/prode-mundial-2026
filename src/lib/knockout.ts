@@ -101,3 +101,58 @@ export function toKnockoutPrediction(p: KnockoutPredFields): KnockoutPrediction 
   const penAdvance = p.penAdvance === "HOME" || p.penAdvance === "AWAY" ? p.penAdvance : null;
   return { reg: { home: p.homeScore, away: p.awayScore }, et, penAdvance };
 }
+
+export type RawPredictionInput = {
+  isKnockout: boolean;
+  home: number;
+  away: number;
+  etHome: number | null;
+  etAway: number | null;
+  penAdvance: AdvanceSide | null;
+};
+
+export type NormalizedPrediction = {
+  homeScore: number;
+  awayScore: number;
+  etHomeScore: number | null;
+  etAwayScore: number | null;
+  penAdvance: AdvanceSide | null;
+};
+
+const inRange = (v: number) => Number.isInteger(v) && v >= 0 && v <= 99;
+
+export function normalizeKnockoutPrediction(
+  input: RawPredictionInput,
+): { ok: true; value: NormalizedPrediction } | { ok: false; error: string } {
+  const { home, away } = input;
+  if (!inRange(home) || !inRange(away)) {
+    return { ok: false, error: "Scores must be whole numbers between 0 and 99" };
+  }
+
+  const groupValue: NormalizedPrediction = {
+    homeScore: home, awayScore: away, etHomeScore: null, etAwayScore: null, penAdvance: null,
+  };
+  if (!input.isKnockout || home !== away) return { ok: true, value: groupValue };
+
+  // Knockout, predicted a 90' draw -> extra time is required.
+  const { etHome, etAway } = input;
+  if (etHome === null || etAway === null || !inRange(etHome) || !inRange(etAway)) {
+    return { ok: false, error: "Predict the score after extra time" };
+  }
+  if (etHome < home || etAway < away) {
+    return { ok: false, error: "Extra-time score can't be lower than the 90' score" };
+  }
+
+  if (etHome !== etAway) {
+    return { ok: true, value: { homeScore: home, awayScore: away, etHomeScore: etHome, etAwayScore: etAway, penAdvance: null } };
+  }
+
+  // ET also a draw -> penalties decide it; a pick is required.
+  if (input.penAdvance !== "HOME" && input.penAdvance !== "AWAY") {
+    return { ok: false, error: "Pick who advances on penalties" };
+  }
+  return {
+    ok: true,
+    value: { homeScore: home, awayScore: away, etHomeScore: etHome, etAwayScore: etAway, penAdvance: input.penAdvance },
+  };
+}
