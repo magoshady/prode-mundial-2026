@@ -1,0 +1,103 @@
+import { predictionPoints, type ScorePair } from "./scoring";
+
+export type AdvanceSide = "HOME" | "AWAY";
+export type Duration = "REGULAR" | "EXTRA_TIME" | "PENALTY_SHOOTOUT";
+
+export type KnockoutPrediction = {
+  reg: ScorePair;
+  /** Predicted aggregate after extra time; null when a decisive 90' was predicted. */
+  et: ScorePair | null;
+  /** Who advances on penalties; set only when ET was predicted as a draw. */
+  penAdvance: AdvanceSide | null;
+};
+
+export type KnockoutResult = {
+  reg: ScorePair;
+  /** Actual aggregate at the end of extra time; null for matches decided in 90'. */
+  etAgg: ScorePair | null;
+  duration: Duration;
+  winner: AdvanceSide;
+};
+
+export type KnockoutBreakdown = {
+  reg: 0 | 1 | 3;
+  etReached: 0 | 1;
+  etExact: 0 | 2;
+  advance: 0 | 3;
+  pens: 0 | 1;
+  total: number;
+};
+
+const isDraw = (s: ScorePair) => s.home === s.away;
+const sideOf = (s: ScorePair): AdvanceSide => (s.home > s.away ? "HOME" : "AWAY");
+
+/** The advancing team a prediction implies, or null if it implies none (a draw with no pen pick). */
+function predictedAdvance(pred: KnockoutPrediction): AdvanceSide | null {
+  if (pred.et === null) return isDraw(pred.reg) ? null : sideOf(pred.reg);
+  if (!isDraw(pred.et)) return sideOf(pred.et);
+  return pred.penAdvance;
+}
+
+export function knockoutPoints(pred: KnockoutPrediction | null, result: KnockoutResult): KnockoutBreakdown {
+  const zero: KnockoutBreakdown = { reg: 0, etReached: 0, etExact: 0, advance: 0, pens: 0, total: 0 };
+  if (!pred) return zero;
+
+  const reg = predictionPoints(pred.reg, result.reg);
+
+  const predictedReachesET = isDraw(pred.reg);
+  const actuallyReachedET = result.duration !== "REGULAR";
+  const etReached: 0 | 1 = predictedReachesET && actuallyReachedET ? 1 : 0;
+
+  const etExact: 0 | 2 =
+    pred.et !== null &&
+    result.etAgg !== null &&
+    pred.et.home === result.etAgg.home &&
+    pred.et.away === result.etAgg.away
+      ? 2
+      : 0;
+
+  const adv = predictedAdvance(pred);
+  const advance: 0 | 3 = adv !== null && adv === result.winner ? 3 : 0;
+
+  const predictedPens = pred.et !== null && isDraw(pred.et);
+  const pens: 0 | 1 = predictedPens && result.duration === "PENALTY_SHOOTOUT" ? 1 : 0;
+
+  return { reg, etReached, etExact, advance, pens, total: reg + etReached + etExact + advance + pens };
+}
+
+export type KnockoutMatchFields = {
+  regHome: number | null;
+  regAway: number | null;
+  etHome: number | null;
+  etAway: number | null;
+  duration: string | null;
+  winner: string | null;
+};
+
+/** Build a KnockoutResult from stored match columns, or null if it cannot be scored yet. */
+export function toKnockoutResult(m: KnockoutMatchFields): KnockoutResult | null {
+  if (m.regHome === null || m.regAway === null) return null;
+  if (m.winner !== "HOME_TEAM" && m.winner !== "AWAY_TEAM") return null;
+  const duration = (m.duration ?? "REGULAR") as Duration;
+  const winner: AdvanceSide = m.winner === "HOME_TEAM" ? "HOME" : "AWAY";
+  const etAgg =
+    duration === "REGULAR"
+      ? null
+      : { home: m.regHome + (m.etHome ?? 0), away: m.regAway + (m.etAway ?? 0) };
+  return { reg: { home: m.regHome, away: m.regAway }, etAgg, duration, winner };
+}
+
+export type KnockoutPredFields = {
+  homeScore: number;
+  awayScore: number;
+  etHomeScore: number | null;
+  etAwayScore: number | null;
+  penAdvance: string | null;
+};
+
+/** Build a KnockoutPrediction from stored prediction columns. */
+export function toKnockoutPrediction(p: KnockoutPredFields): KnockoutPrediction {
+  const et = p.etHomeScore !== null && p.etAwayScore !== null ? { home: p.etHomeScore, away: p.etAwayScore } : null;
+  const penAdvance = p.penAdvance === "HOME" || p.penAdvance === "AWAY" ? p.penAdvance : null;
+  return { reg: { home: p.homeScore, away: p.awayScore }, et, penAdvance };
+}
