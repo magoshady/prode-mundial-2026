@@ -111,3 +111,41 @@ describe("computeStandings bonuses", () => {
     expect(row.points).toBe(3); // exact only, clean sheet NOT counted retroactively
   });
 });
+
+describe("computeStandings knockout", () => {
+  const u = [{ id: 1, name: "A", username: "a" }];
+  const koMatch = (over: Record<string, unknown>) => ({
+    id: 50, stage: "LAST_16", status: "FINISHED",
+    kickoffUtc: new Date("2026-06-29T05:00:00Z"), homeTeam: "X", awayTeam: "Y",
+    homeScore: null, awayScore: null,
+    regularTimeHome: null, regularTimeAway: null, etHome: null, etAway: null,
+    extraTimeHome: null, extraTimeAway: null, duration: null, winner: null,
+    ...over,
+  });
+
+  it("awards full-distance knockout points and counts the 90' exact", () => {
+    // Predicted 1-1 / 2-1 ET / home through; actual exactly that.
+    const m = koMatch({
+      homeScore: 2, awayScore: 1, regularTimeHome: 1, regularTimeAway: 1,
+      extraTimeHome: 1, extraTimeAway: 0, duration: "EXTRA_TIME", winner: "HOME_TEAM",
+    });
+    const rows = computeStandings(u, [m as never], [
+      { userId: 1, matchId: 50, homeScore: 1, awayScore: 1, etHomeScore: 2, etAwayScore: 1, penAdvance: null },
+    ]);
+    expect(rows[0].points).toBe(9); // 3 + 1 + 2 + 3
+    expect(rows[0].exact).toBe(1);
+  });
+
+  it("does NOT apply clean-sheet/cojones/double to knockout matches", () => {
+    // Exact 0-0 in 90' that goes to pens; a 0-0 would earn clean-sheet in groups, but not here.
+    const m = koMatch({
+      homeScore: 4, awayScore: 3, regularTimeHome: 0, regularTimeAway: 0,
+      extraTimeHome: 0, extraTimeAway: 0, duration: "PENALTY_SHOOTOUT", winner: "HOME_TEAM",
+    });
+    const rows = computeStandings(u, [m as never], [
+      { userId: 1, matchId: 50, homeScore: 0, awayScore: 0, etHomeScore: 0, etAwayScore: 0, penAdvance: "HOME" },
+    ], { picks: [], championTeam: null, goldenBootWinner: null, doubleMatchId: 50, perMatchBonusFrom: new Date("2026-01-01") });
+    expect(rows[0].points).toBe(10); // 3 + 1 + 2 + 3 + 1, NOT doubled, no clean-sheet
+    expect(rows[0].bonus.perMatch).toBe(0);
+  });
+});

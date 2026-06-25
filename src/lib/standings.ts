@@ -1,10 +1,19 @@
 import { isScoreable, type MatchLike } from "./rules";
 import { cleanSheetBonus, cojonesBonus, goalsOff, predictionPoints } from "./scoring";
 import { championPoints, darkHorsePoints, goldenBootPoints } from "./bonus";
+import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "./knockout";
 
 type UserLite = { id: number; name: string; username: string };
-type PredLite = { userId: number; matchId: number; homeScore: number; awayScore: number };
-type MatchRow = MatchLike & { id: number; stage: string };
+type PredLite = {
+  userId: number; matchId: number; homeScore: number; awayScore: number;
+  etHomeScore?: number | null; etAwayScore?: number | null; penAdvance?: string | null;
+};
+type MatchRow = MatchLike & {
+  id: number; stage: string;
+  regularTimeHome?: number | null; regularTimeAway?: number | null;
+  extraTimeHome?: number | null; extraTimeAway?: number | null;
+  duration?: string | null; winner?: string | null;
+};
 
 export type BonusPickRow = {
   userId: number;
@@ -69,6 +78,25 @@ export function computeStandings(
     let points = 0, exact = 0, outcomes = 0, off = 0, perMatchBonus = 0;
     for (const m of finished) {
       const p = byUserMatch.get(`${u.id}:${m.id}`);
+
+      if (m.stage !== "GROUP_STAGE") {
+        const koResult = toKnockoutResult({
+          regHome: m.regularTimeHome ?? null, regAway: m.regularTimeAway ?? null,
+          etHome: m.extraTimeHome ?? null, etAway: m.extraTimeAway ?? null,
+          duration: m.duration ?? null, winner: m.winner ?? null,
+        });
+        if (!koResult) continue; // not yet scoreable as a knockout (missing phase data)
+        const koPred = p
+          ? toKnockoutPrediction({ homeScore: p.homeScore, awayScore: p.awayScore, etHomeScore: p.etHomeScore ?? null, etAwayScore: p.etAwayScore ?? null, penAdvance: p.penAdvance ?? null })
+          : null;
+        const bd = knockoutPoints(koPred, koResult);
+        points += bd.total;
+        if (bd.reg === 3) exact++;
+        else if (bd.reg === 1) outcomes++;
+        off += goalsOff(koPred?.reg ?? null, koResult.reg) ?? 0;
+        continue; // no per-match bonus, no double on knockouts
+      }
+
       const pred = p ? { home: p.homeScore, away: p.awayScore } : null;
       const result = { home: m.homeScore!, away: m.awayScore! };
       const base = predictionPoints(pred, result);
