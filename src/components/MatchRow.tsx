@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PredictionForm from "@/components/PredictionForm";
+import KnockoutPredictionForm from "@/components/KnockoutPredictionForm";
 
 export type OtherPred = {
   name: string;
@@ -28,19 +29,25 @@ type Props = {
   others: OtherPred[] | null;
   /** Revealed only after the secret double-points match has finished. */
   double?: boolean;
+  /** True for knockout-stage matches: use the progressive form and the multi-layer badge. */
+  knockout?: boolean;
+  /** Knockout prefill for the form. */
+  mineEtHome?: number | null;
+  mineEtAway?: number | null;
+  minePenAdvance?: "HOME" | "AWAY" | null;
+  /** Pre-formatted final score for knockouts, e.g. "1-1 (2-2 a.e.t., 4-3 pen.)". */
+  finalScoreLabel?: string | null;
 };
 
 function Badge({ v }: { v: number }) {
-  return (
-    <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${v === 3 ? "bg-emerald-700" : v === 1 ? "bg-amber-700" : "bg-zinc-700"}`}>
-      {v} pts
-    </span>
-  );
+  const tone = v === 0 ? "bg-zinc-700" : v <= 2 ? "bg-amber-700" : "bg-emerald-700";
+  return <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${tone}`}>{v} pts</span>;
 }
 
 export default function MatchRow({
   matchId, dateLabel, groupLabel, homeTeam, awayTeam, status, homeScore, awayScore,
   open, scoreable, mine, myPts, others, double,
+  knockout, mineEtHome, mineEtAway, minePenAdvance, finalScoreLabel,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const canExpand = others !== null && others.length > 0;
@@ -60,7 +67,7 @@ export default function MatchRow({
         {live ? (
           <span className="ml-2 font-bold text-amber-400">{homeScore}-{awayScore} LIVE</span>
         ) : status === "FINISHED" ? (
-          <span className="ml-2 font-bold">{homeScore}-{awayScore}</span>
+          <span className="ml-2 font-bold">{finalScoreLabel ?? `${homeScore}-${awayScore}`}</span>
         ) : null}
       </span>
     </>
@@ -71,7 +78,15 @@ export default function MatchRow({
       {open ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
           {matchInfo}
-          <PredictionForm matchId={matchId} home={mine?.home ?? null} away={mine?.away ?? null} />
+          {knockout ? (
+            <KnockoutPredictionForm
+              matchId={matchId} homeTeam={homeTeam} awayTeam={awayTeam}
+              home={mine?.home ?? null} away={mine?.away ?? null}
+              etHome={mineEtHome ?? null} etAway={mineEtAway ?? null} penAdvance={minePenAdvance ?? null}
+            />
+          ) : (
+            <PredictionForm matchId={matchId} home={mine?.home ?? null} away={mine?.away ?? null} />
+          )}
         </div>
       ) : (
         <button

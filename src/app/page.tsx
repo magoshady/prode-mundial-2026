@@ -4,6 +4,7 @@ import { matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
+import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { isDoubleRevealed } from "@/lib/double";
 import Nav from "@/components/Nav";
 import MatchRow, { type OtherPred } from "@/components/MatchRow";
@@ -57,9 +58,30 @@ export default async function FixturePage() {
     const open = isOpenForPrediction(m, now);
     const scoreable = isScoreable(m);
     const result = scoreable ? { home: m.homeScore!, away: m.awayScore! } : null;
-    const myPts = result
-      ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, result)
+
+    const knockout = m.stage !== "GROUP_STAGE";
+    const koResult = knockout
+      ? toKnockoutResult({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, duration: m.duration, winner: m.winner })
       : null;
+
+    const koPts = (row: { homeScore: number; awayScore: number; etHomeScore: number | null; etAwayScore: number | null; penAdvance: string | null } | null) =>
+      koResult ? knockoutPoints(row ? toKnockoutPrediction(row) : null, koResult).total : null;
+
+    const finalScoreLabel = (() => {
+      if (!knockout || m.status !== "FINISHED" || m.regularTimeHome === null) return null;
+      let s = `${m.regularTimeHome}-${m.regularTimeAway}`;
+      if (m.duration !== "REGULAR" && m.extraTimeHome !== null) {
+        s = `${m.regularTimeHome + m.extraTimeHome}-${(m.regularTimeAway ?? 0) + (m.extraTimeAway ?? 0)} a.e.t.`;
+      }
+      if (m.duration === "PENALTY_SHOOTOUT" && m.penaltiesHome !== null) s += ` (${m.penaltiesHome}-${m.penaltiesAway} pen.)`;
+      return s;
+    })();
+
+    const myPts = knockout
+      ? koPts(pred)
+      : result
+        ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, result)
+        : null;
 
     // Everyone's picks are revealed once the match kicks off.
     let others: OtherPred[] | null = null;
@@ -72,7 +94,9 @@ export default async function FixturePage() {
           isMe: u.id === user.id,
           home: p?.homeScore ?? null,
           away: p?.awayScore ?? null,
-          pts: result ? predictionPoints(p ? { home: p.homeScore, away: p.awayScore } : null, result) : null,
+          pts: knockout
+            ? koPts(p ?? null)
+            : result ? predictionPoints(p ? { home: p.homeScore, away: p.awayScore } : null, result) : null,
         };
       });
       others.sort((a, b) => (b.pts ?? -1) - (a.pts ?? -1) || a.name.localeCompare(b.name));
@@ -95,6 +119,11 @@ export default async function FixturePage() {
         myPts={myPts}
         others={others}
         double={isDoubleRevealed(m.id, doubleMatchId, m.status)}
+        knockout={knockout}
+        finalScoreLabel={finalScoreLabel}
+        mineEtHome={pred?.etHomeScore ?? null}
+        mineEtAway={pred?.etAwayScore ?? null}
+        minePenAdvance={(pred?.penAdvance as "HOME" | "AWAY" | null) ?? null}
       />
     );
   };
