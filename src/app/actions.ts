@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { bonusPicks, matches, meta, predictions, users } from "@/db/schema";
 import { createSession, destroySession, requireUser } from "@/lib/auth";
 import { isOpenForPrediction } from "@/lib/rules";
+import { normalizeKnockoutPrediction, type AdvanceSide } from "@/lib/knockout";
 import { GOLDEN_BOOT_CANDIDATES, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
 import { syncMatches } from "@/lib/sync";
 
@@ -31,20 +32,33 @@ export async function logout() {
 
 export async function savePrediction(matchId: number, _prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const home = Number(formData.get("home"));
-  const away = Number(formData.get("away"));
-  if (!Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0 || home > 99 || away > 99) {
-    return { error: "Scores must be whole numbers between 0 and 99" };
-  }
   const match = await db.query.matches.findFirst({ where: eq(matches.id, matchId) });
   if (!match || !isOpenForPrediction(match, new Date())) {
     return { error: "Predictions are closed for this match" };
   }
+
+  const num = (key: string): number | null => {
+    const raw = String(formData.get(key) ?? "").trim();
+    return raw === "" ? null : Number(raw);
+  };
+  const penRaw = String(formData.get("penAdvance") ?? "").trim();
+
+  const result = normalizeKnockoutPrediction({
+    isKnockout: match.stage !== "GROUP_STAGE",
+    home: Number(formData.get("home")),
+    away: Number(formData.get("away")),
+    etHome: num("etHome"),
+    etAway: num("etAway"),
+    penAdvance: penRaw === "HOME" || penRaw === "AWAY" ? (penRaw as AdvanceSide) : null,
+  });
+  if (!result.ok) return { error: result.error };
+  const v = result.value;
+
   await db.insert(predictions)
-    .values({ userId: user.id, matchId, homeScore: home, awayScore: away, updatedAt: new Date() })
+    .values({ userId: user.id, matchId, homeScore: v.homeScore, awayScore: v.awayScore, etHomeScore: v.etHomeScore, etAwayScore: v.etAwayScore, penAdvance: v.penAdvance, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: [predictions.userId, predictions.matchId],
-      set: { homeScore: home, awayScore: away, updatedAt: new Date() },
+      set: { homeScore: v.homeScore, awayScore: v.awayScore, etHomeScore: v.etHomeScore, etAwayScore: v.etAwayScore, penAdvance: v.penAdvance, updatedAt: new Date() },
     });
   revalidatePath("/");
   return undefined;
