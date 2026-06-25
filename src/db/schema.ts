@@ -18,6 +18,14 @@ export const matches = pgTable("matches", {
   awayTeam: text("away_team"),
   homeScore: integer("home_score"),
   awayScore: integer("away_score"),
+  duration: text("duration"), // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT
+  winner: text("winner"), // HOME_TEAM | AWAY_TEAM | DRAW
+  regularTimeHome: integer("regular_time_home"), // the 90' score (knockouts)
+  regularTimeAway: integer("regular_time_away"),
+  extraTimeHome: integer("extra_time_home"), // goals scored during ET
+  extraTimeAway: integer("extra_time_away"),
+  penaltiesHome: integer("penalties_home"),
+  penaltiesAway: integer("penalties_away"),
 });
 
 export const predictions = pgTable(
@@ -28,6 +36,9 @@ export const predictions = pgTable(
     matchId: integer("match_id").notNull().references(() => matches.id),
     homeScore: integer("home_score").notNull(),
     awayScore: integer("away_score").notNull(),
+    etHomeScore: integer("et_home_score"), // predicted aggregate after ET
+    etAwayScore: integer("et_away_score"),
+    penAdvance: text("pen_advance"), // HOME | AWAY (only when ET predicted as a draw)
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("predictions_user_match").on(t.userId, t.matchId)],
