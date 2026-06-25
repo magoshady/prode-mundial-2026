@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { matches, meta } from "@/db/schema";
+import { mapApiScore } from "./sync-map";
 
 const API = "https://api.football-data.org/v4/competitions/WC/matches";
 
@@ -12,7 +13,7 @@ type FDMatch = {
   status: string;
   homeTeam: { name: string | null };
   awayTeam: { name: string | null };
-  score: { fullTime: { home: number | null; away: number | null } };
+  score: import("./sync-map").FDScore;
 };
 
 export async function syncMatches(): Promise<{ count: number }> {
@@ -31,8 +32,7 @@ export async function syncMatches(): Promise<{ count: number }> {
     status: m.status,
     homeTeam: m.homeTeam.name,
     awayTeam: m.awayTeam.name,
-    homeScore: m.score.fullTime.home,
-    awayScore: m.score.fullTime.away,
+    ...mapApiScore(m.score),
   }));
 
   await db.insert(matches).values(rows).onConflictDoUpdate({
@@ -46,6 +46,14 @@ export async function syncMatches(): Promise<{ count: number }> {
       awayTeam: sql`excluded.away_team`,
       homeScore: sql`excluded.home_score`,
       awayScore: sql`excluded.away_score`,
+      duration: sql`excluded.duration`,
+      winner: sql`excluded.winner`,
+      regularTimeHome: sql`excluded.regular_time_home`,
+      regularTimeAway: sql`excluded.regular_time_away`,
+      extraTimeHome: sql`excluded.extra_time_home`,
+      extraTimeAway: sql`excluded.extra_time_away`,
+      penaltiesHome: sql`excluded.penalties_home`,
+      penaltiesAway: sql`excluded.penalties_away`,
     },
   });
 
