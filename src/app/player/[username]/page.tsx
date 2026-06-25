@@ -6,6 +6,7 @@ import { matches, meta, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isScoreable, othersVisible } from "@/lib/rules";
 import { goalsOff, predictionPoints } from "@/lib/scoring";
+import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { computeStandings } from "@/lib/standings";
 import { PER_MATCH_BONUS_FROM } from "@/lib/bonus";
 import Nav from "@/components/Nav";
@@ -51,12 +52,28 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
 
   const matchRows = visible.map((m) => {
     const pred = predByMatch.get(m.id) ?? null;
-    const predPair = pred ? { home: pred.homeScore, away: pred.awayScore } : null;
     const scoreable = isScoreable(m);
+
+    if (m.stage !== "GROUP_STAGE") {
+      const koResult = toKnockoutResult({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, duration: m.duration, winner: m.winner });
+      const koPred = pred ? toKnockoutPrediction({ homeScore: pred.homeScore, awayScore: pred.awayScore, etHomeScore: pred.etHomeScore, etAwayScore: pred.etAwayScore, penAdvance: pred.penAdvance }) : null;
+      const pts = koResult ? knockoutPoints(koPred, koResult).total : null;
+      const predLabel = pred
+        ? `${pred.homeScore}-${pred.awayScore}${pred.etHomeScore !== null ? ` (${pred.etHomeScore}-${pred.etAwayScore} aet${pred.penAdvance ? `, pen ${pred.penAdvance === "HOME" ? m.homeTeam : m.awayTeam}` : ""})` : ""}`
+        : null;
+      const resultLabel = koResult
+        ? `${koResult.reg.home}-${koResult.reg.away}${koResult.etAgg ? ` (${koResult.etAgg.home}-${koResult.etAgg.away} aet)` : ""}`
+        : (m.regularTimeHome !== null ? `${m.regularTimeHome}-${m.regularTimeAway}` : "—");
+      return { m, predLabel, resultLabel, pts, off: null as number | null };
+    }
+
+    const predPair = pred ? { home: pred.homeScore, away: pred.awayScore } : null;
     const result = { home: m.homeScore!, away: m.awayScore! };
     const pts = scoreable ? predictionPoints(predPair, result) : null;
     const off = scoreable ? goalsOff(predPair, result) : null;
-    return { m, pred, pts, off };
+    const predLabel = pred ? `${pred.homeScore}-${pred.awayScore}` : null;
+    const resultLabel = m.homeScore !== null ? `${m.homeScore}-${m.awayScore}` : "—";
+    return { m, predLabel, resultLabel, pts, off };
   });
 
   return (
@@ -79,18 +96,18 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
             </tr>
           </thead>
           <tbody>
-            {matchRows.map(({ m, pred, pts, off }) => (
+            {matchRows.map(({ m, predLabel, resultLabel, pts, off }) => (
               <tr key={m.id} className="border-b border-zinc-800">
                 <td className="px-2 py-3 text-xs text-zinc-500">{fmt.format(m.kickoffUtc)}</td>
                 <td className="px-2 py-3">{m.homeTeam} vs {m.awayTeam}</td>
                 <td className="px-2 py-3 text-center">
-                  {m.homeScore !== null ? `${m.homeScore}-${m.awayScore}` : "—"}
+                  {resultLabel}
                   {(m.status === "IN_PLAY" || m.status === "PAUSED") && <span className="ml-1 text-xs text-amber-400">LIVE</span>}
                 </td>
-                <td className="px-2 py-3 text-center">{pred ? `${pred.homeScore}-${pred.awayScore}` : "—"}</td>
+                <td className="px-2 py-3 text-center">{predLabel ?? "—"}</td>
                 <td className="px-2 py-3 text-right">
                   {pts !== null && (
-                    <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${pts === 3 ? "bg-emerald-700" : pts === 1 ? "bg-amber-700" : "bg-zinc-700"}`}>
+                    <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${pts === 0 ? "bg-zinc-700" : pts <= 2 ? "bg-amber-700" : "bg-emerald-700"}`}>
                       {pts}
                     </span>
                   )}
