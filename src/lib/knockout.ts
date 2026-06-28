@@ -125,6 +125,58 @@ export function knockoutScoreLabel(m: KnockoutScoreFields): string | null {
   return s;
 }
 
+export type OutcomeHintInput = {
+  home: number | null;
+  away: number | null;
+  etHome: number | null;
+  etAway: number | null;
+  penAdvance: AdvanceSide | null;
+  homeTeam: string;
+  awayTeam: string;
+};
+
+export type OutcomeHint = { text: string; tone: "muted" | "warn" };
+
+const goalsLabel = (n: number) => (n === 1 ? "1 goal" : `${n} goals`);
+
+/**
+ * Plain-language reading of the current knockout inputs (aggregate ET semantics),
+ * or null when there is nothing useful to say. Pure; safe to call on every render.
+ */
+export function knockoutOutcomeHint(input: OutcomeHintInput): OutcomeHint | null {
+  const { home, away, etHome, etAway, penAdvance, homeTeam, awayTeam } = input;
+
+  if (home === null || away === null) return null;
+  if (home !== away) return null; // decided in 90'
+
+  if (etHome === null || etAway === null) {
+    return { text: "Tied at 90' — enter the score after extra time", tone: "muted" };
+  }
+  if (etHome < home || etAway < away) {
+    return { text: "Extra-time score can't be below the 90' score", tone: "warn" };
+  }
+
+  const goals = etHome - home + (etAway - away);
+
+  if (etHome !== etAway) {
+    const winner = etHome > etAway ? homeTeam : awayTeam;
+    return {
+      text: `${goalsLabel(goals)} in extra time — ${winner} wins ${etHome}-${etAway} and advances`,
+      tone: "muted",
+    };
+  }
+
+  const stem =
+    goals === 0
+      ? "No goals in extra time — straight to penalties"
+      : `${goalsLabel(goals)} in extra time, still level — straight to penalties`;
+  if (penAdvance) {
+    const winner = penAdvance === "HOME" ? homeTeam : awayTeam;
+    return { text: `${stem}, ${winner} advances`, tone: "muted" };
+  }
+  return { text: stem, tone: "muted" };
+}
+
 export type RawPredictionInput = {
   isKnockout: boolean;
   home: number;

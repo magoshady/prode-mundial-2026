@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   knockoutPoints,
   knockoutScoreLabel,
+  knockoutOutcomeHint,
   toKnockoutResult,
   toKnockoutPrediction,
   normalizeKnockoutPrediction,
@@ -113,6 +114,75 @@ describe("knockoutPoints", () => {
   it("no prediction scores zero on every layer", () => {
     const bd = knockoutPoints(null, res([1, 1], [2, 1], "EXTRA_TIME", "HOME"));
     expect(bd).toEqual({ reg: 0, etReached: 0, etExact: 0, advance: 0, pens: 0, total: 0 });
+  });
+});
+
+describe("knockoutOutcomeHint", () => {
+  const base = { homeTeam: "Argentina", awayTeam: "Brazil" };
+  const hint = (
+    home: number | null,
+    away: number | null,
+    etHome: number | null = null,
+    etAway: number | null = null,
+    penAdvance: "HOME" | "AWAY" | null = null,
+  ) => knockoutOutcomeHint({ ...base, home, away, etHome, etAway, penAdvance });
+
+  it("no hint while the 90' score is incomplete", () => {
+    expect(hint(null, null)).toBeNull();
+    expect(hint(1, null)).toBeNull();
+  });
+
+  it("no hint when 90' is decisive (decided in regulation)", () => {
+    expect(hint(2, 1)).toBeNull();
+  });
+
+  it("prompts for the ET score when 90' is a draw and ET is empty", () => {
+    expect(hint(1, 1)).toEqual({
+      text: "Tied at 90' — enter the score after extra time",
+      tone: "muted",
+    });
+  });
+
+  it("decisive ET: reports goals scored in ET and who advances", () => {
+    expect(hint(1, 1, 2, 1)).toEqual({
+      text: "1 goal in extra time — Argentina wins 2-1 and advances",
+      tone: "muted",
+    });
+  });
+
+  it("decisive ET with several goals: pluralizes and names the away winner", () => {
+    expect(hint(1, 1, 2, 3)).toEqual({
+      text: "3 goals in extra time — Brazil wins 2-3 and advances",
+      tone: "muted",
+    });
+  });
+
+  it("level ET with no further goals → straight to penalties", () => {
+    expect(hint(1, 1, 1, 1)).toEqual({
+      text: "No goals in extra time — straight to penalties",
+      tone: "muted",
+    });
+  });
+
+  it("level ET with goals → penalties, noting the goals", () => {
+    expect(hint(1, 1, 2, 2)).toEqual({
+      text: "2 goals in extra time, still level — straight to penalties",
+      tone: "muted",
+    });
+  });
+
+  it("appends the penalty winner once picked", () => {
+    expect(hint(1, 1, 1, 1, "AWAY")).toEqual({
+      text: "No goals in extra time — straight to penalties, Brazil advances",
+      tone: "muted",
+    });
+  });
+
+  it("warns when the ET aggregate is below the 90' score", () => {
+    expect(hint(1, 1, 0, 1)).toEqual({
+      text: "Extra-time score can't be below the 90' score",
+      tone: "warn",
+    });
   });
 });
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useActionState } from "react";
 import { savePrediction } from "@/app/actions";
 import type { FormState } from "@/app/actions";
+import { knockoutOutcomeHint } from "@/lib/knockout";
 
 type Props = {
   matchId: number;
@@ -28,6 +29,17 @@ export default function KnockoutPredictionForm(p: Props) {
 
   const drawAt90 = h !== "" && a !== "" && h === a;
   const drawAtET = drawAt90 && eh !== "" && ea !== "" && eh === ea;
+
+  const num = (v: string) => (v === "" ? null : Number(v));
+  const hint = knockoutOutcomeHint({
+    home: num(h),
+    away: num(a),
+    etHome: num(eh),
+    etAway: num(ea),
+    penAdvance: pen === "" ? null : pen,
+    homeTeam: p.homeTeam,
+    awayTeam: p.awayTeam,
+  });
 
   const numInput = "w-12 rounded border border-zinc-600 bg-zinc-800 px-1 py-0.5 text-center";
 
@@ -64,6 +76,12 @@ export default function KnockoutPredictionForm(p: Props) {
             {p.awayTeam}
           </label>
         </div>
+      )}
+
+      {hint && (
+        <span className={`text-xs ${hint.tone === "warn" ? "text-amber-400" : "text-zinc-400"}`}>
+          {hint.text}
+        </span>
       )}
 
       {state?.error && <span className="text-xs text-red-400">{state.error}</span>}
