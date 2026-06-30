@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   knockoutPoints,
   knockoutScoreLabel,
+  knockoutPredictionDetail,
   knockoutOutcomeHint,
   toKnockoutResult,
   toKnockoutPrediction,
@@ -114,6 +115,30 @@ describe("knockoutPoints", () => {
   it("no prediction scores zero on every layer", () => {
     const bd = knockoutPoints(null, res([1, 1], [2, 1], "EXTRA_TIME", "HOME"));
     expect(bd).toEqual({ reg: 0, etReached: 0, etExact: 0, advance: 0, pens: 0, total: 0 });
+  });
+});
+
+describe("knockoutPredictionDetail", () => {
+  const detail = (
+    homeScore: number, awayScore: number,
+    etHomeScore: number | null = null, etAwayScore: number | null = null,
+    penAdvance: "HOME" | "AWAY" | null = null,
+  ) => knockoutPredictionDetail({ homeScore, awayScore, etHomeScore, etAwayScore, penAdvance }, "Netherlands", "Morocco");
+
+  it("decisive 90' prediction has no ET detail", () => {
+    expect(detail(2, 0)).toBeNull();
+  });
+
+  it("draw + decisive ET → just the a.e.t. aggregate", () => {
+    expect(detail(1, 1, 2, 1)).toBe("2-1 a.e.t.");
+  });
+
+  it("draw + level ET, away on pens → names the away side", () => {
+    expect(detail(1, 1, 1, 1, "AWAY")).toBe("1-1 a.e.t., Morocco on pens");
+  });
+
+  it("draw + level ET, home on pens → names the home side", () => {
+    expect(detail(0, 0, 2, 2, "HOME")).toBe("2-2 a.e.t., Netherlands on pens");
   });
 });
 

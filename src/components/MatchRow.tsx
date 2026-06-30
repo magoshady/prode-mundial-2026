@@ -10,6 +10,8 @@ export type OtherPred = {
   home: number | null;
   away: number | null;
   pts: number | null;
+  /** Knockout ET/penalty plan, e.g. "1-1 a.e.t., Morocco on pens"; null when none. */
+  detail?: string | null;
 };
 
 type Props = {
@@ -122,14 +124,19 @@ export default function MatchRow({
           </p>
           <ul className="space-y-1">
             {others.map((o) => (
-              <li key={o.name} className="flex items-center gap-2">
-                <span className={`min-w-0 flex-1 truncate ${o.isMe ? "font-semibold text-zinc-200" : "text-zinc-400"}`}>
-                  {o.name}{o.isMe && " (you)"}
-                </span>
-                <span className="tabular-nums text-zinc-300">
-                  {o.home !== null ? `${o.home}-${o.away}` : "—"}
-                </span>
-                {o.pts !== null && <Badge v={o.pts} />}
+              <li key={o.name}>
+                <div className="flex items-center gap-2">
+                  <span className={`min-w-0 flex-1 truncate ${o.isMe ? "font-semibold text-zinc-200" : "text-zinc-400"}`}>
+                    {o.name}{o.isMe && " (you)"}
+                  </span>
+                  <span className="tabular-nums text-zinc-300">
+                    {o.home !== null ? `${o.home}-${o.away}` : "—"}
+                  </span>
+                  {o.pts !== null && <Badge v={o.pts} />}
+                </div>
+                {o.detail && (
+                  <p className="pl-3 text-xs text-zinc-500">↳ {o.detail}</p>
+                )}
               </li>
             ))}
           </ul>

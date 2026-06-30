@@ -4,7 +4,7 @@ import { matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
-import { knockoutPoints, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
+import { knockoutPoints, knockoutPredictionDetail, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { isDoubleRevealed } from "@/lib/double";
 import Nav from "@/components/Nav";
 import MatchRow, { type OtherPred } from "@/components/MatchRow";
@@ -91,6 +91,9 @@ export default async function FixturePage() {
           pts: knockout
             ? koPts(p ?? null)
             : result ? predictionPoints(p ? { home: p.homeScore, away: p.awayScore } : null, result) : null,
+          detail: knockout && p
+            ? knockoutPredictionDetail(p, m.homeTeam ?? "Home", m.awayTeam ?? "Away")
+            : null,
         };
       });
       others.sort((a, b) => (b.pts ?? -1) - (a.pts ?? -1) || a.name.localeCompare(b.name));

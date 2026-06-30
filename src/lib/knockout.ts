@@ -177,6 +177,23 @@ export function knockoutOutcomeHint(input: OutcomeHintInput): OutcomeHint | null
   return { text: stem, tone: "muted" };
 }
 
+/**
+ * Secondary-line detail for a knockout prediction's extra-time / penalty plan,
+ * or null when a decisive 90' was predicted (nothing extra to show).
+ */
+export function knockoutPredictionDetail(
+  p: KnockoutPredFields,
+  homeTeam: string,
+  awayTeam: string,
+): string | null {
+  if (p.etHomeScore === null || p.etAwayScore === null) return null;
+  let s = `${p.etHomeScore}-${p.etAwayScore} a.e.t.`;
+  if (p.penAdvance === "HOME" || p.penAdvance === "AWAY") {
+    s += `, ${p.penAdvance === "HOME" ? homeTeam : awayTeam} on pens`;
+  }
+  return s;
+}
+
 export type RawPredictionInput = {
   isKnockout: boolean;
   home: number;
