@@ -30,4 +30,31 @@ describe("mapApiScore", () => {
       regularTimeHome: 0, regularTimeAway: 0, penaltiesHome: 3, penaltiesAway: 0, duration: "PENALTY_SHOOTOUT",
     });
   });
+
+  it("derives a null winner from fullTime (API quirk: finished shootout, winner unset)", () => {
+    // Real case: Germany 1-1 Paraguay, 4-4 pens shown, fullTime 4-5 → Paraguay (away) advanced.
+    const out = mapApiScore({
+      winner: null, duration: "PENALTY_SHOOTOUT",
+      fullTime: { home: 4, away: 5 }, regularTime: { home: 1, away: 1 }, extraTime: { home: 0, away: 0 }, penalties: { home: 4, away: 4 },
+    });
+    expect(out.winner).toBe("AWAY_TEAM");
+  });
+
+  it("derives a null winner to HOME_TEAM when fullTime favours home", () => {
+    const out = mapApiScore({
+      winner: null, duration: "PENALTY_SHOOTOUT",
+      fullTime: { home: 5, away: 4 }, regularTime: { home: 1, away: 1 }, extraTime: { home: 0, away: 0 }, penalties: { home: 4, away: 4 },
+    });
+    expect(out.winner).toBe("HOME_TEAM");
+  });
+
+  it("leaves winner null when it cannot be derived (fullTime level or unknown)", () => {
+    expect(mapApiScore({ winner: null, duration: "REGULAR", fullTime: { home: 1, away: 1 } }).winner).toBeNull();
+    expect(mapApiScore({ winner: null, duration: "REGULAR", fullTime: { home: null, away: null } }).winner).toBeNull();
+  });
+
+  it("never overrides a winner the API already provided", () => {
+    const out = mapApiScore({ winner: "AWAY_TEAM", duration: "REGULAR", fullTime: { home: 3, away: 0 } });
+    expect(out.winner).toBe("AWAY_TEAM");
+  });
 });
