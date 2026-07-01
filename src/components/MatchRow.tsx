@@ -33,6 +33,8 @@ type Props = {
   double?: boolean;
   /** True for knockout-stage matches: use the progressive form and the multi-layer badge. */
   knockout?: boolean;
+  /** Match stage, e.g. "LAST_32"; used for the Argentina roast easter egg. */
+  stage?: string;
   /** Knockout prefill for the form. */
   mineEtHome?: number | null;
   mineEtAway?: number | null;
@@ -49,7 +51,7 @@ function Badge({ v }: { v: number }) {
 export default function MatchRow({
   matchId, dateLabel, groupLabel, homeTeam, awayTeam, status, homeScore, awayScore,
   open, scoreable, mine, myPts, others, double,
-  knockout, mineEtHome, mineEtAway, minePenAdvance, finalScoreLabel,
+  knockout, stage, mineEtHome, mineEtAway, minePenAdvance, finalScoreLabel,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const canExpand = others !== null && others.length > 0;
@@ -82,7 +84,7 @@ export default function MatchRow({
           {matchInfo}
           {knockout ? (
             <KnockoutPredictionForm
-              matchId={matchId} homeTeam={homeTeam} awayTeam={awayTeam}
+              matchId={matchId} homeTeam={homeTeam} awayTeam={awayTeam} stage={stage ?? ""}
               home={mine?.home ?? null} away={mine?.away ?? null}
               etHome={mineEtHome ?? null} etAway={mineEtAway ?? null} penAdvance={minePenAdvance ?? null}
             />

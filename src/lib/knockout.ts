@@ -194,6 +194,52 @@ export function knockoutPredictionDetail(
   return s;
 }
 
+export type ArgentinaRoastInput = {
+  home: number | null;
+  away: number | null;
+  etHome: number | null;
+  etAway: number | null;
+  penAdvance: AdvanceSide | null;
+  homeTeam: string;
+  awayTeam: string;
+  stage: string;
+};
+
+const ARGENTINA_ROAST: Record<string, string> = {
+  LAST_32: "Que estas poniendo pelotudo?",
+  LAST_16: "Que te pasa la concha de tu hermana?",
+  QUARTER_FINALS: "Nah bueno, vos sos un sorete",
+  SEMI_FINALS: "Esta puteada preguntasela a Rodrigo, pero cuando termine el partido",
+  FINAL: "AH VOS SOS EL MAS PECHO FRIO. QUE ESTAS PONIENDO ACA HIJO DE PUTA?",
+};
+
+/** The side the current inputs commit to advancing, or null while still undecided. */
+function impliedAdvance(input: ArgentinaRoastInput): AdvanceSide | null {
+  const { home, away, etHome, etAway, penAdvance } = input;
+  if (home === null || away === null) return null;
+  if (home !== away) return home > away ? "HOME" : "AWAY";
+  if (etHome === null || etAway === null) return null;
+  if (etHome !== etAway) return etHome > etAway ? "HOME" : "AWAY";
+  return penAdvance;
+}
+
+/**
+ * Easter egg for our all-Argentinean league: a stage-specific roast when the
+ * current inputs commit to Argentina being knocked out. Null when Argentina is
+ * not playing, is predicted to advance, the pick is undecided, or the stage has
+ * no message. Pure; safe to call on every render.
+ */
+export function argentinaRoast(input: ArgentinaRoastInput): string | null {
+  const argSide: AdvanceSide | null =
+    input.homeTeam === "Argentina" ? "HOME" : input.awayTeam === "Argentina" ? "AWAY" : null;
+  if (argSide === null) return null;
+
+  const winner = impliedAdvance(input);
+  if (winner === null || winner === argSide) return null;
+
+  return ARGENTINA_ROAST[input.stage] ?? null;
+}
+
 export type RawPredictionInput = {
   isKnockout: boolean;
   home: number;

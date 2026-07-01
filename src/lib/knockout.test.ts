@@ -4,6 +4,7 @@ import {
   knockoutScoreLabel,
   knockoutPredictionDetail,
   knockoutOutcomeHint,
+  argentinaRoast,
   toKnockoutResult,
   toKnockoutPrediction,
   normalizeKnockoutPrediction,
@@ -208,6 +209,83 @@ describe("knockoutOutcomeHint", () => {
       text: "Extra-time score can't be below the 90' score",
       tone: "warn",
     });
+  });
+});
+
+describe("argentinaRoast", () => {
+  const roast = (
+    home: number | null,
+    away: number | null,
+    opts: {
+      etHome?: number | null;
+      etAway?: number | null;
+      penAdvance?: "HOME" | "AWAY" | null;
+      homeTeam?: string;
+      awayTeam?: string;
+      stage?: string;
+    } = {},
+  ) =>
+    argentinaRoast({
+      home,
+      away,
+      etHome: opts.etHome ?? null,
+      etAway: opts.etAway ?? null,
+      penAdvance: opts.penAdvance ?? null,
+      homeTeam: opts.homeTeam ?? "Argentina",
+      awayTeam: opts.awayTeam ?? "Brazil",
+      stage: opts.stage ?? "LAST_32",
+    });
+
+  it("no roast when Argentina is not in the match", () => {
+    expect(roast(0, 2, { homeTeam: "Brazil", awayTeam: "France" })).toBeNull();
+  });
+
+  it("no roast while the pick is undecided", () => {
+    expect(roast(null, null)).toBeNull(); // blank
+    expect(roast(1, 1)).toBeNull(); // draw at 90', ET blank
+    expect(roast(1, 1, { etHome: 2, etAway: 2 })).toBeNull(); // level ET, no pen pick
+  });
+
+  it("no roast when Argentina is predicted to advance", () => {
+    expect(roast(2, 1)).toBeNull(); // Argentina (home) wins in 90'
+    expect(roast(1, 1, { etHome: 2, etAway: 1 })).toBeNull(); // wins in ET
+    expect(roast(1, 1, { etHome: 2, etAway: 2, penAdvance: "HOME" })).toBeNull(); // wins on pens
+  });
+
+  it("roasts a 90' loss (Argentina at home)", () => {
+    expect(roast(0, 1)).toBe("Que estas poniendo pelotudo?");
+  });
+
+  it("roasts a 90' loss with Argentina as the away side", () => {
+    expect(roast(1, 0, { homeTeam: "Brazil", awayTeam: "Argentina" })).toBe(
+      "Que estas poniendo pelotudo?",
+    );
+  });
+
+  it("roasts a loss in extra time", () => {
+    expect(roast(1, 1, { etHome: 1, etAway: 2 })).toBe("Que estas poniendo pelotudo?");
+  });
+
+  it("roasts a loss on penalties", () => {
+    expect(roast(1, 1, { etHome: 2, etAway: 2, penAdvance: "AWAY" })).toBe(
+      "Que estas poniendo pelotudo?",
+    );
+  });
+
+  it("uses the stage-specific message", () => {
+    expect(roast(0, 1, { stage: "LAST_16" })).toBe("Que te pasa la concha de tu hermana?");
+    expect(roast(0, 1, { stage: "QUARTER_FINALS" })).toBe("Nah bueno, vos sos un sorete");
+    expect(roast(0, 1, { stage: "SEMI_FINALS" })).toBe(
+      "Esta puteada preguntasela a Rodrigo, pero cuando termine el partido",
+    );
+    expect(roast(0, 1, { stage: "FINAL" })).toBe(
+      "AH VOS SOS EL MAS PECHO FRIO. QUE ESTAS PONIENDO ACA HIJO DE PUTA?",
+    );
+  });
+
+  it("no roast for stages without a message", () => {
+    expect(roast(0, 1, { stage: "GROUP_STAGE" })).toBeNull();
+    expect(roast(0, 1, { stage: "THIRD_PLACE" })).toBeNull();
   });
 });
 

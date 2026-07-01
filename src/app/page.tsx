@@ -117,6 +117,7 @@ export default async function FixturePage() {
         others={others}
         double={isDoubleRevealed(m.id, doubleMatchId, m.status)}
         knockout={knockout}
+        stage={m.stage}
         finalScoreLabel={finalScoreLabel}
         mineEtHome={pred?.etHomeScore ?? null}
         mineEtAway={pred?.etAwayScore ?? null}

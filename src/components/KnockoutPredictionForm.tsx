@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useActionState } from "react";
 import { savePrediction } from "@/app/actions";
 import type { FormState } from "@/app/actions";
-import { knockoutOutcomeHint } from "@/lib/knockout";
+import { argentinaRoast, knockoutOutcomeHint } from "@/lib/knockout";
 
 type Props = {
   matchId: number;
   homeTeam: string;
   awayTeam: string;
+  stage: string;
   home: number | null;
   away: number | null;
   etHome: number | null;
@@ -39,6 +40,16 @@ export default function KnockoutPredictionForm(p: Props) {
     penAdvance: pen === "" ? null : pen,
     homeTeam: p.homeTeam,
     awayTeam: p.awayTeam,
+  });
+  const roast = argentinaRoast({
+    home: num(h),
+    away: num(a),
+    etHome: num(eh),
+    etAway: num(ea),
+    penAdvance: pen === "" ? null : pen,
+    homeTeam: p.homeTeam,
+    awayTeam: p.awayTeam,
+    stage: p.stage,
   });
 
   const numInput = "w-12 rounded border border-zinc-600 bg-zinc-800 px-1 py-0.5 text-center";
@@ -82,6 +93,10 @@ export default function KnockoutPredictionForm(p: Props) {
         <span className={`text-xs ${hint.tone === "warn" ? "text-amber-400" : "text-zinc-400"}`}>
           {hint.text}
         </span>
+      )}
+
+      {roast && (
+        <span className="text-sm font-bold uppercase text-red-500">{roast}</span>
       )}
 
       {state?.error && <span className="text-xs text-red-400">{state.error}</span>}
