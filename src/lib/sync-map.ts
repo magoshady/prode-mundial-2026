@@ -20,6 +20,21 @@ function resolveWinner(score: FDScore): string | null {
   return home > away ? "HOME_TEAM" : "AWAY_TEAM";
 }
 
+/**
+ * The 90' score for one side. `regularTime` holds it when present, but the API
+ * sometimes returns it as null on extra-time/penalty matches. `fullTime` is the
+ * aggregate — it already folds in ET goals (and, for shootouts, penalty goals) —
+ * so when `regularTime` is missing we back the 90' score out of it. Note a genuine
+ * 0 at 90' must be kept: only null/undefined counts as "missing".
+ */
+function regulationScore(score: FDScore, side: "home" | "away"): number | null {
+  const rt = score.regularTime?.[side];
+  if (rt !== null && rt !== undefined) return rt;
+  const ft = score.fullTime[side];
+  if (ft === null) return null;
+  return ft - (score.extraTime?.[side] ?? 0) - (score.penalties?.[side] ?? 0);
+}
+
 export function mapApiScore(score: FDScore) {
   return {
     // homeScore/awayScore keep the API's fullTime for group-stage scoring (unchanged).
@@ -27,9 +42,8 @@ export function mapApiScore(score: FDScore) {
     awayScore: score.fullTime.away,
     duration: score.duration,
     winner: resolveWinner(score),
-    // For REGULAR matches the API omits regularTime, so fall back to fullTime.
-    regularTimeHome: score.regularTime?.home ?? score.fullTime.home,
-    regularTimeAway: score.regularTime?.away ?? score.fullTime.away,
+    regularTimeHome: regulationScore(score, "home"),
+    regularTimeAway: regulationScore(score, "away"),
     extraTimeHome: score.extraTime?.home ?? null,
     extraTimeAway: score.extraTime?.away ?? null,
     penaltiesHome: score.penalties?.home ?? null,

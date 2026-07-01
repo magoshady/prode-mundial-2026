@@ -21,6 +21,33 @@ describe("mapApiScore", () => {
     });
   });
 
+  it("EXTRA_TIME with regularTime null: derives the 90' score as fullTime minus ET goals", () => {
+    // Real case: Belgium 3-2 Senegal a.e.t. — 2-2 at 90', 1-0 in ET. API returns regularTime {null,null}.
+    const out = mapApiScore({
+      winner: "HOME_TEAM", duration: "EXTRA_TIME",
+      fullTime: { home: 3, away: 2 }, regularTime: { home: null, away: null }, extraTime: { home: 1, away: 0 },
+    });
+    expect(out).toMatchObject({
+      regularTimeHome: 2, regularTimeAway: 2, extraTimeHome: 1, extraTimeAway: 0, duration: "EXTRA_TIME",
+    });
+  });
+
+  it("PENALTY with regularTime null: backs out both ET and penalty goals from fullTime", () => {
+    const out = mapApiScore({
+      winner: "AWAY_TEAM", duration: "PENALTY_SHOOTOUT",
+      fullTime: { home: 4, away: 5 }, regularTime: { home: null, away: null }, extraTime: { home: 0, away: 0 }, penalties: { home: 3, away: 4 },
+    });
+    expect(out).toMatchObject({ regularTimeHome: 1, regularTimeAway: 1, penaltiesHome: 3, penaltiesAway: 4 });
+  });
+
+  it("keeps a legitimate 0-0 at 90' (regularTime present as zeros, not treated as missing)", () => {
+    const out = mapApiScore({
+      winner: "HOME_TEAM", duration: "PENALTY_SHOOTOUT",
+      fullTime: { home: 3, away: 2 }, regularTime: { home: 0, away: 0 }, extraTime: { home: 0, away: 0 }, penalties: { home: 3, away: 2 },
+    });
+    expect(out).toMatchObject({ regularTimeHome: 0, regularTimeAway: 0 });
+  });
+
   it("PENALTY_SHOOTOUT: regularTime is the run-of-play, NOT the fullTime shootout result", () => {
     const out = mapApiScore({
       winner: "HOME_TEAM", duration: "PENALTY_SHOOTOUT",
