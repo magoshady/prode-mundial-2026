@@ -21,6 +21,29 @@ describe("mapApiScore", () => {
     });
   });
 
+  it("derives EXTRA_TIME from ET goals even when the API flaps duration to REGULAR", () => {
+    // Observed live: football-data served duration REGULAR on a finished ET match
+    // while extraTime stayed {1,0}. Trust the stable score shape, not the string.
+    const out = mapApiScore({
+      winner: "HOME_TEAM", duration: "REGULAR",
+      fullTime: { home: 3, away: 2 }, regularTime: { home: null, away: null }, extraTime: { home: 1, away: 0 },
+    });
+    expect(out).toMatchObject({ duration: "EXTRA_TIME", regularTimeHome: 2, regularTimeAway: 2, extraTimeHome: 1 });
+  });
+
+  it("derives PENALTY_SHOOTOUT from penalties even if duration disagrees", () => {
+    const out = mapApiScore({
+      winner: "AWAY_TEAM", duration: "EXTRA_TIME",
+      fullTime: { home: 4, away: 5 }, regularTime: { home: 1, away: 1 }, extraTime: { home: 0, away: 0 }, penalties: { home: 3, away: 4 },
+    });
+    expect(out.duration).toBe("PENALTY_SHOOTOUT");
+  });
+
+  it("keeps REGULAR when there is no ET or penalty data", () => {
+    const out = mapApiScore({ winner: "HOME_TEAM", duration: "REGULAR", fullTime: { home: 2, away: 0 } });
+    expect(out.duration).toBe("REGULAR");
+  });
+
   it("EXTRA_TIME with regularTime null: derives the 90' score as fullTime minus ET goals", () => {
     // Real case: Belgium 3-2 Senegal a.e.t. — 2-2 at 90', 1-0 in ET. API returns regularTime {null,null}.
     const out = mapApiScore({

@@ -35,12 +35,29 @@ function regulationScore(score: FDScore, side: "home" | "away"): number | null {
   return ft - (score.extraTime?.[side] ?? 0) - (score.penalties?.[side] ?? 0);
 }
 
+const hasValue = (p?: { home: number | null; away: number | null } | null) =>
+  !!p && (p.home !== null || p.away !== null);
+
+/**
+ * The API's `duration` is unreliable on some finished matches — observed live
+ * flapping between REGULAR and EXTRA_TIME on the same game across consecutive
+ * requests, which would drop the "reached extra time" points whenever the cron
+ * happened to snapshot a REGULAR moment. The score *shape* is stable, so derive
+ * duration from it: penalties present → shootout, ET goals present → extra time,
+ * otherwise fall back to the reported duration.
+ */
+function resolveDuration(score: FDScore): string {
+  if (hasValue(score.penalties)) return "PENALTY_SHOOTOUT";
+  if (hasValue(score.extraTime)) return "EXTRA_TIME";
+  return score.duration ?? "REGULAR";
+}
+
 export function mapApiScore(score: FDScore) {
   return {
     // homeScore/awayScore keep the API's fullTime for group-stage scoring (unchanged).
     homeScore: score.fullTime.home,
     awayScore: score.fullTime.away,
-    duration: score.duration,
+    duration: resolveDuration(score),
     winner: resolveWinner(score),
     regularTimeHome: regulationScore(score, "home"),
     regularTimeAway: regulationScore(score, "away"),
