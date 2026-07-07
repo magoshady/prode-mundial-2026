@@ -1,6 +1,6 @@
 import { isScoreable, type MatchLike } from "./rules";
 import { cleanSheetBonus, cojonesBonus, goalsOff, predictionPoints } from "./scoring";
-import { championPoints, darkHorsePoints, goldenBootPoints } from "./bonus";
+import { championPoints, darkHorsePoints, goldenBootPoints, stageMultiplier } from "./bonus";
 import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "./knockout";
 
 type UserLite = { id: number; name: string; username: string };
@@ -90,11 +90,19 @@ export function computeStandings(
           ? toKnockoutPrediction({ homeScore: p.homeScore, awayScore: p.awayScore, etHomeScore: p.etHomeScore ?? null, etAwayScore: p.etAwayScore ?? null, penAdvance: p.penAdvance ?? null })
           : null;
         const bd = knockoutPoints(koPred, koResult);
-        points += bd.total;
+        // Clean-sheet / cojones apply on the 90' score, same as the group stage, from the cutoff
+        // onwards. Then the whole match total is scaled by the stage: (base + bonus) * multiplier.
+        // The group "double" never applies to knockouts. Half-points (x1.5, x2.5) are kept as-is.
+        const koEligible = perMatchFrom !== null && m.kickoffUtc.getTime() >= perMatchFrom.getTime();
+        const koCs = koEligible ? cleanSheetBonus(koPred?.reg ?? null, koResult.reg) : 0;
+        const koCj = koEligible ? cojonesBonus(koPred?.reg ?? null, koResult.reg) : 0;
+        const koMult = stageMultiplier(m.stage);
+        points += (bd.total + koCs + koCj) * koMult;
+        perMatchBonus += (koCs + koCj) * koMult; // bonus portion, scaled by the stage
         if (bd.reg === 3) exact++;
         else if (bd.reg === 1) outcomes++;
         off += goalsOff(koPred?.reg ?? null, koResult.reg) ?? 0;
-        continue; // no per-match bonus, no double on knockouts
+        continue;
       }
 
       const pred = p ? { home: p.homeScore, away: p.awayScore } : null;

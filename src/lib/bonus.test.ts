@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   championPoints, goldenBootPoints, darkHorsePoints, picksDeadlinePassed, isFieldLocked, allPicksSubmitted,
-  UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES,
+  stageMultiplier, UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES,
 } from "./bonus";
 
 describe("curated lists", () => {
@@ -45,6 +45,23 @@ describe("darkHorsePoints", () => {
   });
   it("gives the full 25 for winning the final", () => {
     expect(darkHorsePoints("Morocco", all, true)).toBe(25);
+  });
+});
+
+describe("stageMultiplier", () => {
+  it("keeps the group stage and early knockout rounds at x1", () => {
+    expect(stageMultiplier("GROUP_STAGE")).toBe(1);
+    expect(stageMultiplier("LAST_32")).toBe(1);
+    expect(stageMultiplier("LAST_16")).toBe(1);
+  });
+  it("escalates through the late rounds", () => {
+    expect(stageMultiplier("QUARTER_FINALS")).toBe(1.5);
+    expect(stageMultiplier("SEMI_FINALS")).toBe(2);
+    expect(stageMultiplier("THIRD_PLACE")).toBe(2.5);
+    expect(stageMultiplier("FINAL")).toBe(3);
+  });
+  it("defaults an unknown stage to x1", () => {
+    expect(stageMultiplier("SOMETHING_ELSE")).toBe(1);
   });
 });
 

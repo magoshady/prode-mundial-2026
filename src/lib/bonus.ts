@@ -23,6 +23,20 @@ export const PER_MATCH_BONUS_FROM = new Date("2026-06-20T00:30:00Z");
 export const CHAMPION_POINTS = 5;
 export const GOLDEN_BOOT_POINTS = 3;
 
+/** The later the round, the more each match is worth. Applies to a knockout match's
+ *  points (group stage and the round of 32/16 stay at ×1). Half-points are kept as-is
+ *  — ×1.5 and ×2.5 can yield a .5, which we do NOT round. */
+export const STAGE_MULTIPLIERS: Record<string, number> = {
+  QUARTER_FINALS: 1.5,
+  SEMI_FINALS: 2,
+  THIRD_PLACE: 2.5,
+  FINAL: 3,
+};
+
+export function stageMultiplier(stage: string): number {
+  return STAGE_MULTIPLIERS[stage] ?? 1;
+}
+
 /** Cumulative points awarded the first time the Dark Horse pick reaches each stage. */
 export const DARK_HORSE_STAGE_POINTS: Record<string, number> = {
   LAST_32: 2,        // passed group stage

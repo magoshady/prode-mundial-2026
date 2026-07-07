@@ -136,8 +136,31 @@ describe("computeStandings knockout", () => {
     expect(rows[0].exact).toBe(1);
   });
 
-  it("does NOT apply clean-sheet/cojones/double to knockout matches", () => {
-    // Exact 0-0 in 90' that goes to pens; a 0-0 would earn clean-sheet in groups, but not here.
+  it("scales knockout points by the stage multiplier, keeping half-points", () => {
+    // Exact 2-1 home win decided in 90' -> knockout base = reg 3 + advance 3 = 6.
+    const exactWin = (id: number, stage: string) =>
+      koMatch({ id, stage, homeScore: 2, awayScore: 1, regularTimeHome: 2, regularTimeAway: 1, duration: "REGULAR", winner: "HOME_TEAM" });
+    const exactPred = (matchId: number) =>
+      ({ userId: 1, matchId, homeScore: 2, awayScore: 1, etHomeScore: null, etAwayScore: null, penAdvance: null });
+
+    expect(computeStandings(u, [exactWin(60, "QUARTER_FINALS") as never], [exactPred(60)])[0].points).toBe(9); // 6 * 1.5
+    expect(computeStandings(u, [exactWin(61, "SEMI_FINALS") as never], [exactPred(61)])[0].points).toBe(12); // 6 * 2
+    expect(computeStandings(u, [exactWin(62, "THIRD_PLACE") as never], [exactPred(62)])[0].points).toBe(15); // 6 * 2.5
+    expect(computeStandings(u, [exactWin(63, "FINAL") as never], [exactPred(63)])[0].points).toBe(18); // 6 * 3
+    expect(computeStandings(u, [exactWin(64, "LAST_16") as never], [exactPred(64)])[0].points).toBe(6); // x1, unchanged
+  });
+
+  it("keeps genuine half-points (x1.5 of an odd base) without rounding", () => {
+    // Predict 1-1 / ET 2-1 home; actual 2-0 home win in 90'. Knockout base = advance only = 3; QF x1.5 = 4.5.
+    const m = koMatch({ id: 65, stage: "QUARTER_FINALS", homeScore: 2, awayScore: 0, regularTimeHome: 2, regularTimeAway: 0, duration: "REGULAR", winner: "HOME_TEAM" });
+    const rows = computeStandings(u, [m as never], [
+      { userId: 1, matchId: 65, homeScore: 1, awayScore: 1, etHomeScore: 2, etAwayScore: 1, penAdvance: null },
+    ]);
+    expect(rows[0].points).toBe(4.5);
+  });
+
+  it("applies clean-sheet/cojones to knockout matches, but never the group double", () => {
+    // Exact 0-0 in 90' that goes to pens: knockout base 10, + clean-sheet 2 (both sides kept it). LAST_16 x1.
     const m = koMatch({
       homeScore: 4, awayScore: 3, regularTimeHome: 0, regularTimeAway: 0,
       extraTimeHome: 0, extraTimeAway: 0, duration: "PENALTY_SHOOTOUT", winner: "HOME_TEAM",
@@ -145,7 +168,18 @@ describe("computeStandings knockout", () => {
     const rows = computeStandings(u, [m as never], [
       { userId: 1, matchId: 50, homeScore: 0, awayScore: 0, etHomeScore: 0, etAwayScore: 0, penAdvance: "HOME" },
     ], { picks: [], championTeam: null, goldenBootWinner: null, doubleMatchId: 50, perMatchBonusFrom: new Date("2026-01-01") });
-    expect(rows[0].points).toBe(10); // 3 + 1 + 2 + 3 + 1, NOT doubled, no clean-sheet
-    expect(rows[0].bonus.perMatch).toBe(0);
+    expect(rows[0].points).toBe(12); // (10 base + 2 clean-sheet) x1; the double (id 50) is ignored on knockouts
+    expect(rows[0].bonus.perMatch).toBe(2);
+  });
+
+  it("adds knockout bonuses BEFORE the multiplier: (base + bonus) x mult", () => {
+    // Exact 3-2 home win in 90' in a QF: base = reg 3 + advance 3 = 6, cojones +1 (5 goals).
+    // (6 + 1) x 1.5 = 10.5 — the bonus is inside the multiply, and the half survives.
+    const m = koMatch({ id: 66, stage: "QUARTER_FINALS", homeScore: 3, awayScore: 2, regularTimeHome: 3, regularTimeAway: 2, duration: "REGULAR", winner: "HOME_TEAM" });
+    const rows = computeStandings(u, [m as never], [
+      { userId: 1, matchId: 66, homeScore: 3, awayScore: 2, etHomeScore: null, etAwayScore: null, penAdvance: null },
+    ], { picks: [], championTeam: null, goldenBootWinner: null, doubleMatchId: null, perMatchBonusFrom: new Date("2026-01-01") });
+    expect(rows[0].points).toBe(10.5);
+    expect(rows[0].bonus.perMatch).toBe(1.5); // cojones 1 x 1.5
   });
 });

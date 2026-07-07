@@ -8,7 +8,7 @@ import { isScoreable, othersVisible } from "@/lib/rules";
 import { goalsOff, predictionPoints } from "@/lib/scoring";
 import { knockoutPoints, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { computeStandings } from "@/lib/standings";
-import { PER_MATCH_BONUS_FROM } from "@/lib/bonus";
+import { PER_MATCH_BONUS_FROM, stageMultiplier } from "@/lib/bonus";
 import Nav from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
     if (m.stage !== "GROUP_STAGE") {
       const koResult = toKnockoutResult({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, duration: m.duration, winner: m.winner });
       const koPred = pred ? toKnockoutPrediction({ homeScore: pred.homeScore, awayScore: pred.awayScore, etHomeScore: pred.etHomeScore, etAwayScore: pred.etAwayScore, penAdvance: pred.penAdvance }) : null;
-      const pts = koResult ? knockoutPoints(koPred, koResult).total : null;
+      const pts = koResult ? knockoutPoints(koPred, koResult).total * stageMultiplier(m.stage) : null;
       const predLabel = pred
         ? `${pred.homeScore}-${pred.awayScore}${pred.etHomeScore !== null ? ` (${pred.etHomeScore}-${pred.etAwayScore} aet${pred.penAdvance ? `, pen ${pred.penAdvance === "HOME" ? m.homeTeam : m.awayTeam}` : ""})` : ""}`
         : null;
