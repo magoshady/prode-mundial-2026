@@ -121,13 +121,20 @@ export default function KnockoutPredictionForm(p: Props) {
     </form>
 
       {p.showBombita && (
-        <label className={`flex items-center gap-1.5 text-xs ${p.bombitaDisabled ? "opacity-50" : "cursor-pointer"}`}>
+        <label
+          className={`flex min-h-10 w-fit max-w-full select-none items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition ${
+            bombita ? "border-amber-600/60 bg-amber-500/10" : "border-zinc-700/60 bg-zinc-800/40"
+          } ${p.bombitaDisabled ? "opacity-50" : "cursor-pointer active:scale-95"}`}
+        >
           <input
             type="checkbox" checked={bombita} disabled={p.bombitaDisabled || bombitaPending}
             onChange={(e) => toggleBombita(e.target.checked)}
+            className="size-4 shrink-0 accent-amber-500"
           />
-          <span className="font-semibold">💣 Bombita</span>
-          <span className="text-zinc-500">— doble o nada en los 90&apos;</span>
+          <span className="min-w-0">
+            <span className={`font-semibold ${bombita ? "text-amber-300" : ""}`}>💣 Bombita</span>{" "}
+            <span className="text-zinc-500">— doble o nada en los 90&apos;</span>
+          </span>
         </label>
       )}
     </div>
