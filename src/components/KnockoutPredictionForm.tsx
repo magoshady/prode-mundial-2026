@@ -16,6 +16,9 @@ type Props = {
   etHome: number | null;
   etAway: number | null;
   penAdvance: "HOME" | "AWAY" | null;
+  showBombita?: boolean;
+  bombitaChecked?: boolean;
+  bombitaDisabled?: boolean;
 };
 
 export default function KnockoutPredictionForm(p: Props) {
@@ -27,6 +30,7 @@ export default function KnockoutPredictionForm(p: Props) {
   const [eh, setEh] = useState(p.etHome?.toString() ?? "");
   const [ea, setEa] = useState(p.etAway?.toString() ?? "");
   const [pen, setPen] = useState<"HOME" | "AWAY" | "">(p.penAdvance ?? "");
+  const [bombita, setBombita] = useState(!!p.bombitaChecked);
 
   const drawAt90 = h !== "" && a !== "" && h === a;
   const drawAtET = drawAt90 && eh !== "" && ea !== "" && eh === ea;
@@ -97,6 +101,17 @@ export default function KnockoutPredictionForm(p: Props) {
 
       {roast && (
         <span className="text-sm font-bold uppercase text-red-500">{roast}</span>
+      )}
+
+      {p.showBombita && (
+        <label className={`flex items-center gap-1.5 text-xs ${p.bombitaDisabled ? "opacity-50" : "cursor-pointer"}`}>
+          <input
+            type="checkbox" name="bombita" checked={bombita} disabled={p.bombitaDisabled}
+            onChange={(e) => setBombita(e.target.checked)}
+          />
+          <span className="font-semibold">💣 Bombita</span>
+          <span className="text-zinc-500">— doble o nada en los 90&apos;</span>
+        </label>
       )}
 
       {state?.error && <span className="text-xs text-red-400">{state.error}</span>}

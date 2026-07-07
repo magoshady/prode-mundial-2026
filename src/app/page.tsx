@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { matches, meta } from "@/db/schema";
+import { bonusPicks, matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
@@ -28,13 +28,18 @@ const PAST_THRESHOLD_MS = 30 * 60 * 60 * 1000;
 export default async function FixturePage() {
   const user = await requireUser();
   const now = new Date();
-  const [all, allUsers, allPreds, doubleRow] = await Promise.all([
+  const [all, allUsers, allPreds, doubleRow, myBonus] = await Promise.all([
     db.query.matches.findMany({ orderBy: [asc(matches.kickoffUtc), asc(matches.id)] }),
     db.query.users.findMany(),
     db.query.predictions.findMany(),
     db.query.meta.findFirst({ where: eq(meta.key, "double_match_id") }),
+    db.query.bonusPicks.findFirst({ where: eq(bonusPicks.userId, user.id) }),
   ]);
   const doubleMatchId = doubleRow?.value ? Number(doubleRow.value) : null;
+
+  const myBombitaId = myBonus?.bombitaMatchId ?? null;
+  const myBombitaMatch = myBombitaId !== null ? all.find((m) => m.id === myBombitaId) : null;
+  const myBombitaLocked = !!myBombitaMatch && now.getTime() >= myBombitaMatch.kickoffUtc.getTime();
 
   const myPreds = allPreds.filter((p) => p.userId === user.id);
   const predByMatch = new Map(myPreds.map((p) => [p.matchId, p]));
@@ -123,6 +128,8 @@ export default async function FixturePage() {
         mineEtHome={pred?.etHomeScore ?? null}
         mineEtAway={pred?.etAwayScore ?? null}
         minePenAdvance={(pred?.penAdvance as "HOME" | "AWAY" | null) ?? null}
+        bombitaChecked={m.id === myBombitaId}
+        bombitaDisabled={myBombitaLocked}
       />
     );
   };

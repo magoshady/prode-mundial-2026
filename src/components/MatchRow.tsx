@@ -41,6 +41,9 @@ type Props = {
   minePenAdvance?: "HOME" | "AWAY" | null;
   /** Pre-formatted final score for knockouts, e.g. "1-1 (2-2 a.e.t., 4-3 pen.)". */
   finalScoreLabel?: string | null;
+  /** Current user's bombita state for this QF match. */
+  bombitaChecked?: boolean;
+  bombitaDisabled?: boolean;
 };
 
 function Badge({ v }: { v: number }) {
@@ -52,6 +55,7 @@ export default function MatchRow({
   matchId, dateLabel, groupLabel, homeTeam, awayTeam, status, homeScore, awayScore,
   open, scoreable, mine, myPts, others, double,
   knockout, stage, mineEtHome, mineEtAway, minePenAdvance, finalScoreLabel,
+  bombitaChecked, bombitaDisabled,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const canExpand = others !== null && others.length > 0;
@@ -87,6 +91,8 @@ export default function MatchRow({
               matchId={matchId} homeTeam={homeTeam} awayTeam={awayTeam} stage={stage ?? ""}
               home={mine?.home ?? null} away={mine?.away ?? null}
               etHome={mineEtHome ?? null} etAway={mineEtAway ?? null} penAdvance={minePenAdvance ?? null}
+              showBombita={stage === "QUARTER_FINALS"}
+              bombitaChecked={bombitaChecked} bombitaDisabled={bombitaDisabled}
             />
           ) : (
             <PredictionForm matchId={matchId} home={mine?.home ?? null} away={mine?.away ?? null} />
