@@ -1,7 +1,20 @@
 import { isScoreable, type MatchLike } from "./rules";
 import { cleanSheetBonus, cojonesBonus, goalsOff, predictionPoints } from "./scoring";
 import { championPoints, darkHorsePoints, goldenBootPoints, stageMultiplier } from "./bonus";
-import { knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "./knockout";
+import { bombitaMatchPoints, knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "./knockout";
+
+/** The last QF fixture (latest kickoff; ties → lowest id), or null if none. Drives the no-bet penalty. */
+export function lastQuarterFinalId(matches: { id: number; stage: string; kickoffUtc: Date }[]): number | null {
+  const qf = matches.filter((m) => m.stage === "QUARTER_FINALS");
+  if (qf.length === 0) return null;
+  let best = qf[0];
+  for (const m of qf) {
+    const t = m.kickoffUtc.getTime();
+    const bt = best.kickoffUtc.getTime();
+    if (t > bt || (t === bt && m.id < best.id)) best = m;
+  }
+  return best.id;
+}
 
 type UserLite = { id: number; name: string; username: string };
 type PredLite = {
@@ -20,6 +33,7 @@ export type BonusPickRow = {
   championTeam: string | null;
   goldenBootPlayer: string | null;
   darkHorseTeam: string | null;
+  bombitaMatchId?: number | null;
 };
 export type BonusContext = {
   picks: BonusPickRow[];
@@ -39,7 +53,7 @@ export type StandingRow = {
   exact: number;
   outcomes: number; // 1-point hits
   goalsOff: number; // total |Δgoals|, informational only — does not affect rank
-  bonus: { perMatch: number; champion: number; goldenBoot: number; darkHorse: number; total: number };
+  bonus: { perMatch: number; champion: number; goldenBoot: number; darkHorse: number; bombita: number; total: number };
   rank: number;
 };
 
@@ -73,9 +87,12 @@ export function computeStandings(
   const goldenBootWinner = ctx?.goldenBootWinner ?? null;
   const doubleMatchId = ctx?.doubleMatchId ?? null;
   const perMatchFrom = ctx?.perMatchBonusFrom ?? null;
+  const lastQfId = lastQuarterFinalId(matches);
 
   const rows = users.map((u) => {
-    let points = 0, exact = 0, outcomes = 0, off = 0, perMatchBonus = 0;
+    let points = 0, exact = 0, outcomes = 0, off = 0, perMatchBonus = 0, bombitaBonus = 0;
+    const pick = picksByUser.get(u.id);
+    const bombitaMatchId = pick?.bombitaMatchId ?? null;
     for (const m of finished) {
       const p = byUserMatch.get(`${u.id}:${m.id}`);
 
@@ -97,8 +114,19 @@ export function computeStandings(
         const koCs = koEligible ? cleanSheetBonus(koPred?.reg ?? null, koResult.reg) : 0;
         const koCj = koEligible ? cojonesBonus(koPred?.reg ?? null, koResult.reg) : 0;
         const koMult = stageMultiplier(m.stage);
-        points += (bd.total + koCs + koCj) * koMult;
-        perMatchBonus += (koCs + koCj) * koMult; // bonus portion, scaled by the stage
+        const normalTotal = (bd.total + koCs + koCj) * koMult;
+
+        let contribution = normalTotal;
+        if (bombitaMatchId === m.id) {
+          contribution = bombitaMatchPoints(normalTotal, koMult, bd); // double-or-nothing on this match
+          bombitaBonus += contribution - normalTotal;
+        } else if (bombitaMatchId == null && m.id === lastQfId) {
+          contribution = 0; // never bet -> forced 0 on the last QF
+          bombitaBonus += contribution - normalTotal;
+        }
+
+        points += contribution;
+        perMatchBonus += (koCs + koCj) * koMult; // normal bonus part (bombita delta is tracked separately)
         if (bd.reg === 3) exact++;
         else if (bd.reg === 1) outcomes++;
         off += goalsOff(koPred?.reg ?? null, koResult.reg) ?? 0;
@@ -121,7 +149,6 @@ export function computeStandings(
       off += goalsOff(pred, result) ?? 0;
     }
 
-    const pick = picksByUser.get(u.id);
     const champion = championPoints(pick?.championTeam ?? null, championTeam);
     const goldenBoot = goldenBootPoints(pick?.goldenBootPlayer ?? null, goldenBootWinner);
     const dhTeam = pick?.darkHorseTeam ?? null;
@@ -130,12 +157,12 @@ export function computeStandings(
     const darkHorse = darkHorsePoints(dhTeam, dhStages, wonFinal);
 
     points += champion + goldenBoot + darkHorse;
-    const bonusTotal = perMatchBonus + champion + goldenBoot + darkHorse;
+    const bonusTotal = perMatchBonus + champion + goldenBoot + darkHorse + bombitaBonus;
 
     return {
       userId: u.id, name: u.name, username: u.username,
       points, exact, outcomes, goalsOff: off,
-      bonus: { perMatch: perMatchBonus, champion, goldenBoot, darkHorse, total: bonusTotal },
+      bonus: { perMatch: perMatchBonus, champion, goldenBoot, darkHorse, bombita: bombitaBonus, total: bonusTotal },
       rank: 0,
     };
   });

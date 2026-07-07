@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeStandings } from "./standings";
+import { computeStandings, lastQuarterFinalId } from "./standings";
 
 const users = [
   { id: 1, name: "A", username: "a" },
@@ -143,7 +143,8 @@ describe("computeStandings knockout", () => {
     const exactPred = (matchId: number) =>
       ({ userId: 1, matchId, homeScore: 2, awayScore: 1, etHomeScore: null, etAwayScore: null, penAdvance: null });
 
-    expect(computeStandings(u, [exactWin(60, "QUARTER_FINALS") as never], [exactPred(60)])[0].points).toBe(9); // 6 * 1.5
+    const noBombita = { picks: [{ userId: 1, championTeam: null, goldenBootPlayer: null, darkHorseTeam: null, bombitaMatchId: -1 }], championTeam: null, goldenBootWinner: null, doubleMatchId: null, perMatchBonusFrom: null };
+    expect(computeStandings(u, [exactWin(60, "QUARTER_FINALS") as never], [exactPred(60)], noBombita)[0].points).toBe(9); // 6 * 1.5
     expect(computeStandings(u, [exactWin(61, "SEMI_FINALS") as never], [exactPred(61)])[0].points).toBe(12); // 6 * 2
     expect(computeStandings(u, [exactWin(62, "THIRD_PLACE") as never], [exactPred(62)])[0].points).toBe(15); // 6 * 2.5
     expect(computeStandings(u, [exactWin(63, "FINAL") as never], [exactPred(63)])[0].points).toBe(18); // 6 * 3
@@ -155,7 +156,7 @@ describe("computeStandings knockout", () => {
     const m = koMatch({ id: 65, stage: "QUARTER_FINALS", homeScore: 2, awayScore: 0, regularTimeHome: 2, regularTimeAway: 0, duration: "REGULAR", winner: "HOME_TEAM" });
     const rows = computeStandings(u, [m as never], [
       { userId: 1, matchId: 65, homeScore: 1, awayScore: 1, etHomeScore: 2, etAwayScore: 1, penAdvance: null },
-    ]);
+    ], { picks: [{ userId: 1, championTeam: null, goldenBootPlayer: null, darkHorseTeam: null, bombitaMatchId: -1 }], championTeam: null, goldenBootWinner: null, doubleMatchId: null, perMatchBonusFrom: null });
     expect(rows[0].points).toBe(4.5);
   });
 
@@ -178,8 +179,79 @@ describe("computeStandings knockout", () => {
     const m = koMatch({ id: 66, stage: "QUARTER_FINALS", homeScore: 3, awayScore: 2, regularTimeHome: 3, regularTimeAway: 2, duration: "REGULAR", winner: "HOME_TEAM" });
     const rows = computeStandings(u, [m as never], [
       { userId: 1, matchId: 66, homeScore: 3, awayScore: 2, etHomeScore: null, etAwayScore: null, penAdvance: null },
-    ], { picks: [], championTeam: null, goldenBootWinner: null, doubleMatchId: null, perMatchBonusFrom: new Date("2026-01-01") });
+    ], { picks: [{ userId: 1, championTeam: null, goldenBootPlayer: null, darkHorseTeam: null, bombitaMatchId: -1 }], championTeam: null, goldenBootWinner: null, doubleMatchId: null, perMatchBonusFrom: new Date("2026-01-01") });
     expect(rows[0].points).toBe(10.5);
     expect(rows[0].bonus.perMatch).toBe(1.5); // cojones 1 x 1.5
+  });
+});
+
+describe("lastQuarterFinalId", () => {
+  const mk = (id: number, iso: string) => ({ id, stage: "QUARTER_FINALS", kickoffUtc: new Date(iso) });
+  it("picks the latest-kickoff QF", () => {
+    expect(lastQuarterFinalId([mk(70, "2026-07-10T18:00:00Z"), mk(71, "2026-07-11T18:00:00Z")])).toBe(71);
+  });
+  it("breaks kickoff ties by lowest id", () => {
+    expect(lastQuarterFinalId([mk(73, "2026-07-11T18:00:00Z"), mk(71, "2026-07-11T18:00:00Z")])).toBe(71);
+  });
+  it("is null when there are no QF matches", () => {
+    expect(lastQuarterFinalId([{ id: 1, stage: "GROUP_STAGE", kickoffUtc: new Date("2026-06-11T18:00:00Z") }])).toBeNull();
+  });
+});
+
+describe("computeStandings bombita", () => {
+  const u = [{ id: 1, name: "A", username: "a" }];
+  const FROM = new Date("2026-01-01");
+  const qf = (id: number, iso: string, over: Record<string, unknown>) => ({
+    id, stage: "QUARTER_FINALS", status: "FINISHED",
+    kickoffUtc: new Date(iso), homeTeam: "X", awayTeam: "Y",
+    homeScore: null, awayScore: null,
+    regularTimeHome: null, regularTimeAway: null, etHome: null, etAway: null,
+    extraTimeHome: null, extraTimeAway: null, duration: null, winner: null,
+    ...over,
+  });
+  // Exact 2-1 home win in 90': knockout base = reg 3 + advance 3 = 6; no clean sheet, no cojones.
+  const exactWin = (id: number, iso: string) =>
+    qf(id, iso, { homeScore: 2, awayScore: 1, regularTimeHome: 2, regularTimeAway: 1, duration: "REGULAR", winner: "HOME_TEAM" });
+  const pred = (matchId: number, h: number, a: number) =>
+    ({ userId: 1, matchId, homeScore: h, awayScore: a, etHomeScore: null, etAwayScore: null, penAdvance: null });
+  const ctx = (bombitaMatchId: number | null) => ({
+    picks: [{ userId: 1, championTeam: null, goldenBootPlayer: null, darkHorseTeam: null, bombitaMatchId }],
+    championTeam: null, goldenBootWinner: null, doubleMatchId: null, perMatchBonusFrom: FROM,
+  });
+
+  it("doubles the bombita match on an exact 90' (jackpot) and reports the delta", () => {
+    const rows = computeStandings(u, [exactWin(70, "2026-07-10T18:00:00Z"), exactWin(71, "2026-07-11T18:00:00Z")],
+      [pred(70, 2, 1)], ctx(70)); // bombita on QF #70 (not the last QF), no pred on #71
+    expect(rows[0].points).toBe(18);        // normal 6 x1.5 = 9, doubled = 18
+    expect(rows[0].bonus.bombita).toBe(9);  // delta over the normal 9
+  });
+
+  it("pays the 3 x mult floor when the bombita 90' is wrong but the advancer is right", () => {
+    // Predict 3-0 home; actual 2-1 home in 90': reg=1 (not exact), advance=3.
+    const m = qf(70, "2026-07-10T18:00:00Z", { homeScore: 2, awayScore: 1, regularTimeHome: 2, regularTimeAway: 1, duration: "REGULAR", winner: "HOME_TEAM" });
+    const rows = computeStandings(u, [m as never, exactWin(71, "2026-07-11T18:00:00Z")], [pred(70, 3, 0)], ctx(70));
+    expect(rows[0].points).toBe(4.5); // floor 3 x 1.5
+  });
+
+  it("is zero when the bombita misses both the score and the advancer", () => {
+    // Predict 0-2 away; actual 2-1 home: reg=0, advance=0.
+    const m = qf(70, "2026-07-10T18:00:00Z", { homeScore: 2, awayScore: 1, regularTimeHome: 2, regularTimeAway: 1, duration: "REGULAR", winner: "HOME_TEAM" });
+    const rows = computeStandings(u, [m as never, exactWin(71, "2026-07-11T18:00:00Z")], [pred(70, 0, 2)], ctx(70));
+    expect(rows[0].points).toBe(0);
+  });
+
+  it("forces a 0 on the last QF for a player who never set a bombita", () => {
+    // No bombita; predicts both QFs exactly. #71 is the last QF -> forced 0. #70 scores normally (9).
+    const rows = computeStandings(u, [exactWin(70, "2026-07-10T18:00:00Z"), exactWin(71, "2026-07-11T18:00:00Z")],
+      [pred(70, 2, 1), pred(71, 2, 1)], ctx(null));
+    expect(rows[0].points).toBe(9);          // 9 (QF#70) + 0 (QF#71 penalty)
+    expect(rows[0].bonus.bombita).toBe(-9);  // the penalty delta on #71
+  });
+
+  it("does NOT penalise a player who bombita'd an earlier QF", () => {
+    // Bombita on #70 (jackpot 18); #71 is the last QF but they have a bombita, so it scores normally (9).
+    const rows = computeStandings(u, [exactWin(70, "2026-07-10T18:00:00Z"), exactWin(71, "2026-07-11T18:00:00Z")],
+      [pred(70, 2, 1), pred(71, 2, 1)], ctx(70));
+    expect(rows[0].points).toBe(27); // 18 + 9
   });
 });
