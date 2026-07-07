@@ -12,6 +12,8 @@ export type OtherPred = {
   pts: number | null;
   /** Knockout ET/penalty plan, e.g. "1-1 a.e.t., Morocco on pens"; null when none. */
   detail?: string | null;
+  /** True once this match kicked off and this player had it as their bombita. */
+  bombita?: boolean;
 };
 
 type Props = {
@@ -141,6 +143,7 @@ export default function MatchRow({
                     {o.home !== null ? `${o.home}-${o.away}` : "—"}
                   </span>
                   {o.pts !== null && <Badge v={o.pts} />}
+                  {o.bombita && <span title="Bombita">💣</span>}
                 </div>
                 {o.detail && (
                   <p className="pl-3 text-xs text-zinc-500">↳ {o.detail}</p>

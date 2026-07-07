@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { bonusPicks, matches, meta } from "@/db/schema";
+import { matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
@@ -28,14 +28,17 @@ const PAST_THRESHOLD_MS = 30 * 60 * 60 * 1000;
 export default async function FixturePage() {
   const user = await requireUser();
   const now = new Date();
-  const [all, allUsers, allPreds, doubleRow, myBonus] = await Promise.all([
+  const [all, allUsers, allPreds, doubleRow, allBonus] = await Promise.all([
     db.query.matches.findMany({ orderBy: [asc(matches.kickoffUtc), asc(matches.id)] }),
     db.query.users.findMany(),
     db.query.predictions.findMany(),
     db.query.meta.findFirst({ where: eq(meta.key, "double_match_id") }),
-    db.query.bonusPicks.findFirst({ where: eq(bonusPicks.userId, user.id) }),
+    db.query.bonusPicks.findMany(),
   ]);
   const doubleMatchId = doubleRow?.value ? Number(doubleRow.value) : null;
+
+  const myBonus = allBonus.find((b) => b.userId === user.id) ?? null;
+  const bombitaByUser = new Map(allBonus.map((b) => [b.userId, b.bombitaMatchId ?? null]));
 
   const myBombitaId = myBonus?.bombitaMatchId ?? null;
   const myBombitaMatch = myBombitaId !== null ? all.find((m) => m.id === myBombitaId) : null;
@@ -100,6 +103,7 @@ export default async function FixturePage() {
           detail: knockout && p
             ? knockoutPredictionDetail(p, m.homeTeam ?? "Home", m.awayTeam ?? "Away")
             : null,
+          bombita: bombitaByUser.get(u.id) === m.id,
         };
       });
       others.sort((a, b) => (b.pts ?? -1) - (a.pts ?? -1) || a.name.localeCompare(b.name));
