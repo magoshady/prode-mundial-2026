@@ -9,7 +9,7 @@ import { bonusPicks, matches, meta, predictions, users } from "@/db/schema";
 import { createSession, destroySession, requireUser } from "@/lib/auth";
 import { isOpenForPrediction } from "@/lib/rules";
 import { normalizeKnockoutPrediction, type AdvanceSide } from "@/lib/knockout";
-import { GOLDEN_BOOT_CANDIDATES, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
+import { GOLDEN_BOOT_CANDIDATES, bombitaWindowOpen, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
 import { syncMatches } from "@/lib/sync";
 
 export type FormState = { error?: string } | undefined;
@@ -60,6 +60,26 @@ export async function savePrediction(matchId: number, _prev: FormState, formData
       target: [predictions.userId, predictions.matchId],
       set: { homeScore: v.homeScore, awayScore: v.awayScore, etHomeScore: v.etHomeScore, etAwayScore: v.etAwayScore, penAdvance: v.penAdvance, updatedAt: new Date() },
     });
+
+  // 💣 bombita: a QF-only flag saved with the forecast. Set/move it while the match is open
+  // and your current bombita has not locked (its match has not kicked off).
+  if (bombitaWindowOpen(match, new Date())) {
+    const wantsBombita = String(formData.get("bombita") ?? "") === "on";
+    const existing = await db.query.bonusPicks.findFirst({ where: eq(bonusPicks.userId, user.id) });
+    const curId = existing?.bombitaMatchId ?? null;
+    let curLocked = false;
+    if (curId !== null) {
+      const curMatch = await db.query.matches.findFirst({ where: eq(matches.id, curId) });
+      curLocked = !!curMatch && new Date().getTime() >= curMatch.kickoffUtc.getTime();
+    }
+    if (!curLocked) {
+      const next = wantsBombita ? matchId : curId === matchId ? null : curId;
+      await db.insert(bonusPicks)
+        .values({ userId: user.id, bombitaMatchId: next, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: bonusPicks.userId, set: { bombitaMatchId: next, updatedAt: new Date() } });
+    }
+  }
+
   revalidatePath("/");
   return undefined;
 }

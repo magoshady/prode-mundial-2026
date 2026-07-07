@@ -78,6 +78,11 @@ export function goldenBootPoints(pick: string | null, winner: string | null): nu
   return pick && winner && pick === winner ? GOLDEN_BOOT_POINTS : 0;
 }
 
+/** You may set/move a bombita only onto a QF match that has not yet kicked off. */
+export function bombitaWindowOpen(match: { stage: string; kickoffUtc: Date }, now: Date): boolean {
+  return match.stage === "QUARTER_FINALS" && now.getTime() < match.kickoffUtc.getTime();
+}
+
 export function darkHorsePoints(pick: string | null, reachedStages: Set<string>, wonFinal: boolean): number {
   if (!pick) return 0;
   let pts = 0;

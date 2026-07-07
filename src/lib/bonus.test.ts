@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   championPoints, goldenBootPoints, darkHorsePoints, picksDeadlinePassed, isFieldLocked, allPicksSubmitted,
-  stageMultiplier, UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES,
+  stageMultiplier, UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES, bombitaWindowOpen,
 } from "./bonus";
 
 describe("curated lists", () => {
@@ -83,6 +83,19 @@ describe("picks deadline + per-field lock", () => {
   });
   it("any field is locked once the deadline passes", () => {
     expect(isFieldLocked(null, deadline, after)).toBe(true);
+  });
+});
+
+describe("bombitaWindowOpen", () => {
+  const now = new Date("2026-07-10T12:00:00Z");
+  it("is open for a QF match that has not kicked off", () => {
+    expect(bombitaWindowOpen({ stage: "QUARTER_FINALS", kickoffUtc: new Date("2026-07-10T18:00:00Z") }, now)).toBe(true);
+  });
+  it("is closed once the QF match has kicked off", () => {
+    expect(bombitaWindowOpen({ stage: "QUARTER_FINALS", kickoffUtc: new Date("2026-07-10T10:00:00Z") }, now)).toBe(false);
+  });
+  it("is closed for non-QF stages", () => {
+    expect(bombitaWindowOpen({ stage: "SEMI_FINALS", kickoffUtc: new Date("2026-07-14T18:00:00Z") }, now)).toBe(false);
   });
 });
 

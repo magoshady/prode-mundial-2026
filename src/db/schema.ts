@@ -49,6 +49,7 @@ export const bonusPicks = pgTable("bonus_picks", {
   championTeam: text("champion_team"),
   goldenBootPlayer: text("golden_boot_player"),
   darkHorseTeam: text("dark_horse_team"),
+  bombitaMatchId: integer("bombita_match_id").references(() => matches.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
