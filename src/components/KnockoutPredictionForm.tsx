@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useActionState } from "react";
-import { savePrediction } from "@/app/actions";
+import { savePrediction, setBombita } from "@/app/actions";
 import type { FormState } from "@/app/actions";
 import { argentinaRoast, knockoutOutcomeHint } from "@/lib/knockout";
 
@@ -30,7 +30,20 @@ export default function KnockoutPredictionForm(p: Props) {
   const [eh, setEh] = useState(p.etHome?.toString() ?? "");
   const [ea, setEa] = useState(p.etAway?.toString() ?? "");
   const [pen, setPen] = useState<"HOME" | "AWAY" | "">(p.penAdvance ?? "");
-  const [bombita, setBombita] = useState(!!p.bombitaChecked);
+
+  // 💣 is an instant toggle backed by its own server action, not the forecast Save. The
+  // checked state is the single server-side truth (p.bombitaChecked); useOptimistic shows
+  // the click immediately, then reconciles to the server after the action revalidates. So
+  // selecting a new match re-renders the old card with bombitaChecked=false and it un-ticks —
+  // only one 💣 can ever be selected.
+  const [bombita, setOptimisticBombita] = useOptimistic(!!p.bombitaChecked);
+  const [bombitaPending, startBombita] = useTransition();
+  const toggleBombita = (want: boolean) => {
+    startBombita(async () => {
+      setOptimisticBombita(want);
+      await setBombita(p.matchId, want);
+    });
+  };
 
   const drawAt90 = h !== "" && a !== "" && h === a;
   const drawAtET = drawAt90 && eh !== "" && ea !== "" && eh === ea;
@@ -59,6 +72,7 @@ export default function KnockoutPredictionForm(p: Props) {
   const numInput = "w-12 rounded border border-zinc-600 bg-zinc-800 px-1 py-0.5 text-center";
 
   return (
+    <div className="flex flex-col gap-1.5">
     <form action={formAction} className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
         <input name="home" type="number" min={0} max={99} required value={h} onChange={(e) => setH(e.target.value)} className={numInput} />
@@ -103,18 +117,19 @@ export default function KnockoutPredictionForm(p: Props) {
         <span className="text-sm font-bold uppercase text-red-500">{roast}</span>
       )}
 
+      {state?.error && <span className="text-xs text-red-400">{state.error}</span>}
+    </form>
+
       {p.showBombita && (
         <label className={`flex items-center gap-1.5 text-xs ${p.bombitaDisabled ? "opacity-50" : "cursor-pointer"}`}>
           <input
-            type="checkbox" name="bombita" checked={bombita} disabled={p.bombitaDisabled}
-            onChange={(e) => setBombita(e.target.checked)}
+            type="checkbox" checked={bombita} disabled={p.bombitaDisabled || bombitaPending}
+            onChange={(e) => toggleBombita(e.target.checked)}
           />
           <span className="font-semibold">💣 Bombita</span>
           <span className="text-zinc-500">— doble o nada en los 90&apos;</span>
         </label>
       )}
-
-      {state?.error && <span className="text-xs text-red-400">{state.error}</span>}
-    </form>
+    </div>
   );
 }

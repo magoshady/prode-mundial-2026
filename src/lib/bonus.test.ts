@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   championPoints, goldenBootPoints, darkHorsePoints, picksDeadlinePassed, isFieldLocked, allPicksSubmitted,
-  stageMultiplier, UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES, bombitaWindowOpen,
+  stageMultiplier, UNDERDOG_TEAMS, GOLDEN_BOOT_CANDIDATES, bombitaWindowOpen, nextBombita,
 } from "./bonus";
 
 describe("curated lists", () => {
@@ -96,6 +96,21 @@ describe("bombitaWindowOpen", () => {
   });
   it("is closed for non-QF stages", () => {
     expect(bombitaWindowOpen({ stage: "SEMI_FINALS", kickoffUtc: new Date("2026-07-14T18:00:00Z") }, now)).toBe(false);
+  });
+});
+
+describe("nextBombita", () => {
+  it("sets the bombita on a match when there was none", () => {
+    expect(nextBombita(null, 50, true)).toBe(50);
+  });
+  it("MOVES the bombita off the existing match onto the newly-selected one", () => {
+    expect(nextBombita(50, 51, true)).toBe(51);
+  });
+  it("clears the bombita when unticking the current match", () => {
+    expect(nextBombita(50, 50, false)).toBeNull();
+  });
+  it("leaves the bombita untouched when unticking a different match", () => {
+    expect(nextBombita(50, 51, false)).toBe(50);
   });
 });
 

@@ -83,6 +83,16 @@ export function bombitaWindowOpen(match: { stage: string; kickoffUtc: Date }, no
   return match.stage === "QUARTER_FINALS" && now.getTime() < match.kickoffUtc.getTime();
 }
 
+/**
+ * The single bombita match id after toggling `matchId`. There is only ever one:
+ * ticking a match (want=true) sets/MOVES the bombita onto it; unticking the current
+ * match clears it; unticking any other match leaves the current pick untouched.
+ */
+export function nextBombita(curId: number | null, matchId: number, want: boolean): number | null {
+  if (want) return matchId;
+  return curId === matchId ? null : curId;
+}
+
 export function darkHorsePoints(pick: string | null, reachedStages: Set<string>, wonFinal: boolean): number {
   if (!pick) return 0;
   let pts = 0;

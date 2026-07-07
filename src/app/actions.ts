@@ -9,7 +9,7 @@ import { bonusPicks, matches, meta, predictions, users } from "@/db/schema";
 import { createSession, destroySession, requireUser } from "@/lib/auth";
 import { isOpenForPrediction } from "@/lib/rules";
 import { normalizeKnockoutPrediction, type AdvanceSide } from "@/lib/knockout";
-import { GOLDEN_BOOT_CANDIDATES, bombitaWindowOpen, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
+import { GOLDEN_BOOT_CANDIDATES, bombitaWindowOpen, nextBombita, picksDeadlinePassed, UNDERDOG_TEAMS } from "@/lib/bonus";
 import { syncMatches } from "@/lib/sync";
 
 export type FormState = { error?: string } | undefined;
@@ -61,27 +61,34 @@ export async function savePrediction(matchId: number, _prev: FormState, formData
       set: { homeScore: v.homeScore, awayScore: v.awayScore, etHomeScore: v.etHomeScore, etAwayScore: v.etAwayScore, penAdvance: v.penAdvance, updatedAt: new Date() },
     });
 
-  // 💣 bombita: a QF-only flag saved with the forecast. Set/move it while the match is open
-  // and your current bombita has not locked (its match has not kicked off).
-  if (bombitaWindowOpen(match, new Date())) {
-    const wantsBombita = String(formData.get("bombita") ?? "") === "on";
-    const existing = await db.query.bonusPicks.findFirst({ where: eq(bonusPicks.userId, user.id) });
-    const curId = existing?.bombitaMatchId ?? null;
-    let curLocked = false;
-    if (curId !== null) {
-      const curMatch = await db.query.matches.findFirst({ where: eq(matches.id, curId) });
-      curLocked = !!curMatch && new Date().getTime() >= curMatch.kickoffUtc.getTime();
-    }
-    if (!curLocked) {
-      const next = wantsBombita ? matchId : curId === matchId ? null : curId;
-      await db.insert(bonusPicks)
-        .values({ userId: user.id, bombitaMatchId: next, updatedAt: new Date() })
-        .onConflictDoUpdate({ target: bonusPicks.userId, set: { bombitaMatchId: next, updatedAt: new Date() } });
-    }
-  }
-
   revalidatePath("/");
   return undefined;
+}
+
+/**
+ * 💣 bombita — its own instant toggle, independent of the forecast save. There is only
+ * ever ONE: ticking a QF sets/moves it here; unticking the current one clears it. Guarded
+ * so it only lands on an open QF, and refuses any change once your bombita has locked
+ * (its match kicked off). Revalidates so every QF card reflects the single selection.
+ */
+export async function setBombita(matchId: number, want: boolean): Promise<void> {
+  const user = await requireUser();
+  const match = await db.query.matches.findFirst({ where: eq(matches.id, matchId) });
+  if (!match || !bombitaWindowOpen(match, new Date())) return;
+
+  const existing = await db.query.bonusPicks.findFirst({ where: eq(bonusPicks.userId, user.id) });
+  const curId = existing?.bombitaMatchId ?? null;
+  if (curId !== null) {
+    const curMatch = await db.query.matches.findFirst({ where: eq(matches.id, curId) });
+    const curLocked = !!curMatch && new Date().getTime() >= curMatch.kickoffUtc.getTime();
+    if (curLocked) return; // a locked bombita cannot be moved or cleared
+  }
+
+  const next = nextBombita(curId, matchId, want);
+  await db.insert(bonusPicks)
+    .values({ userId: user.id, bombitaMatchId: next, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: bonusPicks.userId, set: { bombitaMatchId: next, updatedAt: new Date() } });
+  revalidatePath("/");
 }
 
 export async function adminSync(): Promise<void> {
