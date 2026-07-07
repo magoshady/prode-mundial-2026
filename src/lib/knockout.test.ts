@@ -8,9 +8,11 @@ import {
   toKnockoutResult,
   toKnockoutPrediction,
   normalizeKnockoutPrediction,
+  bombitaMatchPoints,
   type KnockoutPrediction,
   type KnockoutResult,
   type KnockoutScoreFields,
+  type KnockoutBreakdown,
 } from "./knockout";
 
 const pred = (
@@ -366,5 +368,23 @@ describe("normalizeKnockoutPrediction", () => {
   it("knockout ET draw + pen pick is accepted", () => {
     const out = normalizeKnockoutPrediction({ ...base, home: 0, away: 0, etHome: 1, etAway: 1, penAdvance: "AWAY" });
     expect(out).toEqual({ ok: true, value: { homeScore: 0, awayScore: 0, etHomeScore: 1, etAwayScore: 1, penAdvance: "AWAY" } });
+  });
+});
+
+describe("bombitaMatchPoints", () => {
+  const bd = (over: Partial<KnockoutBreakdown>): KnockoutBreakdown =>
+    ({ reg: 0, etReached: 0, etExact: 0, advance: 0, pens: 0, total: 0, ...over });
+
+  it("doubles the normal total on an exact 90' score (reg 3)", () => {
+    expect(bombitaMatchPoints(10.5, 1.5, bd({ reg: 3, advance: 3, total: 6 }))).toBe(21);
+  });
+  it("pays 3 x multiplier on the advancer floor when the 90' is not exact", () => {
+    expect(bombitaMatchPoints(6, 1.5, bd({ reg: 1, advance: 3, total: 4 }))).toBe(4.5);
+  });
+  it("is zero when neither the exact 90' nor the advancer is hit", () => {
+    expect(bombitaMatchPoints(6, 1.5, bd({ reg: 1, advance: 0, total: 1 }))).toBe(0);
+  });
+  it("keeps half-points from the doubled total", () => {
+    expect(bombitaMatchPoints(10.5, 1.5, bd({ reg: 3, total: 7 }))).toBe(21);
   });
 });

@@ -65,6 +65,18 @@ export function knockoutPoints(pred: KnockoutPrediction | null, result: Knockout
   return { reg, etReached, etExact, advance, pens, total: reg + etReached + etExact + advance + pens };
 }
 
+/**
+ * BOMBITA payout for a single QF match. The bet is on the 90' scoreline:
+ * exact 90' doubles the whole normal haul; otherwise you get a 3×multiplier
+ * floor only if you called the advancer; else zero. Derived from the breakdown:
+ * reg===3 means exact 90', advance===3 means the advancer was right.
+ */
+export function bombitaMatchPoints(normalTotal: number, mult: number, bd: KnockoutBreakdown): number {
+  if (bd.reg === 3) return normalTotal * 2; // exact 90' -> jackpot
+  if (bd.advance === 3) return 3 * mult;    // advancer only -> floor
+  return 0;
+}
+
 export type KnockoutMatchFields = {
   regHome: number | null;
   regAway: number | null;
