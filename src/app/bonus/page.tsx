@@ -83,6 +83,7 @@ export default async function BonusPage() {
               <li>Campeón: <b>{myRow.bonus.champion}</b></li>
               <li>Botín de Oro: <b>{myRow.bonus.goldenBoot}</b></li>
               <li>Tapado: <b>{myRow.bonus.darkHorse}</b></li>
+              <li>💣 Bombita: <b>{myRow.bonus.bombita}</b></li>
               <li className="border-t border-zinc-800 pt-1">Total bonus: <b>{myRow.bonus.total}</b></li>
             </ul>
           </section>
@@ -126,6 +127,7 @@ export default async function BonusPage() {
             <li><b>🏆 Campeón:</b> +5 si acertás el campeón del Mundial.</li>
             <li><b>👟 Botín de Oro:</b> +3 si acertás el goleador del torneo.</li>
             <li><b>🐴 Tapado:</b> suma por ronda alcanzada — grupos +2, 16avos +2, 8vos +3, 4tos +3, semis +5, gana la final +10 (máx 25).</li>
+            <li><b>💣 Bombita:</b> doble o nada en un partido de 4tos — exacto duplica los puntos de ese partido, acertar solo quién pasa paga 4.5, cualquier otra cosa 0. Si nunca la jugás, tu último 4to vale 0.</li>
             <li><b>⭐ Partido doble secreto:</b> un partido al azar de la última fecha de grupos vale el doble. Se revela al terminar.</li>
             <li className="text-zinc-500">Valla invicta y Cojones cuentan desde Brasil–Haití en adelante.</li>
           </ul>
