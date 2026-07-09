@@ -224,6 +224,8 @@ describe("computeStandings bombita", () => {
       [pred(70, 2, 1)], ctx(70)); // bombita on QF #70 (not the last QF), no pred on #71
     expect(rows[0].points).toBe(18);        // normal 6 x1.5 = 9, doubled = 18
     expect(rows[0].bonus.bombita).toBe(9);  // delta over the normal 9
+    expect(rows[0].bonus.total).toBe(0);    // the bet lives in match points, not the bonus tally
+    expect(rows[0].bonus.bombitaDetail).toEqual({ matchId: 70, paid: 18, normal: 9, bet: true });
   });
 
   it("pays the 3 x mult floor when the bombita 90' is wrong but the advancer is right", () => {
@@ -246,6 +248,8 @@ describe("computeStandings bombita", () => {
       [pred(70, 2, 1), pred(71, 2, 1)], ctx(null));
     expect(rows[0].points).toBe(9);          // 9 (QF#70) + 0 (QF#71 penalty)
     expect(rows[0].bonus.bombita).toBe(-9);  // the penalty delta on #71
+    expect(rows[0].bonus.total).toBe(0);     // the penalty never drags the bonus tally negative
+    expect(rows[0].bonus.bombitaDetail).toEqual({ matchId: 71, paid: 0, normal: 9, bet: false });
   });
 
   it("does NOT penalise a player who bombita'd an earlier QF", () => {

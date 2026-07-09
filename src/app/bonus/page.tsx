@@ -52,6 +52,16 @@ export default async function BonusPage() {
     perMatchBonusFrom: PER_MATCH_BONUS_FROM,
   });
   const myRow = rows.find((r) => r.userId === user.id);
+  const bombita = myRow?.bonus.bombitaDetail ?? null;
+  const bombitaMatch = bombita ? allMatches.find((m) => m.id === bombita.matchId) : null;
+  const bombitaVs = bombitaMatch ? `${bombitaMatch.homeTeam ?? "?"}–${bombitaMatch.awayTeam ?? "?"}` : null;
+  const bombitaLine = bombita && bombitaVs
+    ? bombita.bet
+      ? bombita.paid > bombita.normal
+        ? `${bombitaVs}: ¡exacto! pagó ${bombita.paid} (doble de ${bombita.normal})`
+        : `${bombitaVs}: pagó ${bombita.paid} de ${bombita.normal}`
+      : `no la jugaste — ${bombitaVs} pagó 0 de ${bombita.normal}`
+    : null;
 
   return (
     <>
@@ -83,7 +93,7 @@ export default async function BonusPage() {
               <li>Campeón: <b>{myRow.bonus.champion}</b></li>
               <li>Botín de Oro: <b>{myRow.bonus.goldenBoot}</b></li>
               <li>Tapado: <b>{myRow.bonus.darkHorse}</b></li>
-              <li>💣 Bombita: <b>{myRow.bonus.bombita}</b></li>
+              {bombitaLine && <li>💣 Bombita: {bombitaLine}</li>}
               <li className="border-t border-zinc-800 pt-1">Total bonus: <b>{myRow.bonus.total}</b></li>
             </ul>
           </section>

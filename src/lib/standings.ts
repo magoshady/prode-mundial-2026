@@ -53,7 +53,14 @@ export type StandingRow = {
   exact: number;
   outcomes: number; // 1-point hits
   goalsOff: number; // total |Δgoals|, informational only — does not affect rank
-  bonus: { perMatch: number; champion: number; goldenBoot: number; darkHorse: number; bombita: number; total: number };
+  bonus: {
+    perMatch: number; champion: number; goldenBoot: number; darkHorse: number;
+    /** Net effect of the bombita bet on match points. Informational — NOT part of `total`. */
+    bombita: number;
+    /** How the bombita resolved (bet or forced-zero), or null while unresolved. */
+    bombitaDetail: { matchId: number; paid: number; normal: number; bet: boolean } | null;
+    total: number;
+  };
   rank: number;
 };
 
@@ -91,6 +98,7 @@ export function computeStandings(
 
   const rows = users.map((u) => {
     let points = 0, exact = 0, outcomes = 0, off = 0, perMatchBonus = 0, bombitaBonus = 0;
+    let bombitaDetail: StandingRow["bonus"]["bombitaDetail"] = null;
     const pick = picksByUser.get(u.id);
     const bombitaMatchId = pick?.bombitaMatchId ?? null;
     for (const m of finished) {
@@ -120,9 +128,11 @@ export function computeStandings(
         if (bombitaMatchId === m.id) {
           contribution = bombitaMatchPoints(normalTotal, koMult, bd); // double-or-nothing on this match
           bombitaBonus += contribution - normalTotal;
+          bombitaDetail = { matchId: m.id, paid: contribution, normal: normalTotal, bet: true };
         } else if (bombitaMatchId == null && m.id === lastQfId) {
           contribution = 0; // never bet -> forced 0 on the last QF
           bombitaBonus += contribution - normalTotal;
+          bombitaDetail = { matchId: m.id, paid: 0, normal: normalTotal, bet: false };
         }
 
         points += contribution;
@@ -157,12 +167,14 @@ export function computeStandings(
     const darkHorse = darkHorsePoints(dhTeam, dhStages, wonFinal);
 
     points += champion + goldenBoot + darkHorse;
-    const bonusTotal = perMatchBonus + champion + goldenBoot + darkHorse + bombitaBonus;
+    // The bombita is a bet on match points, so its swing lives in `points` only;
+    // the bonus tally stays the sum of the actual bonus lines.
+    const bonusTotal = perMatchBonus + champion + goldenBoot + darkHorse;
 
     return {
       userId: u.id, name: u.name, username: u.username,
       points, exact, outcomes, goalsOff: off,
-      bonus: { perMatch: perMatchBonus, champion, goldenBoot, darkHorse, bombita: bombitaBonus, total: bonusTotal },
+      bonus: { perMatch: perMatchBonus, champion, goldenBoot, darkHorse, bombita: bombitaBonus, bombitaDetail, total: bonusTotal },
       rank: 0,
     };
   });
