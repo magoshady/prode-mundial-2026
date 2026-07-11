@@ -1,4 +1,4 @@
-import { predictionPoints, type ScorePair } from "./scoring";
+import { cleanSheetBonus, cojonesBonus, predictionPoints, type ScorePair } from "./scoring";
 
 export type AdvanceSide = "HOME" | "AWAY";
 export type Duration = "REGULAR" | "EXTRA_TIME" | "PENALTY_SHOOTOUT";
@@ -75,6 +75,52 @@ export function bombitaMatchPoints(normalTotal: number, mult: number, bd: Knocko
   if (bd.reg === 3) return normalTotal * 2; // exact 90' -> jackpot
   if (bd.advance === 3) return 3 * mult;    // advancer only -> floor
   return 0;
+}
+
+export type KnockoutMatchScore = {
+  breakdown: KnockoutBreakdown;
+  cleanSheet: 0 | 1 | 2;
+  cojones: 0 | 1 | 2;
+  /** (base + per-match bonuses) × stage multiplier, before the bombita bet resolves. */
+  normal: number;
+  /** Points actually banked for the match, after the bombita bet or the no-bet forfeit. */
+  points: number;
+  /** How the bombita affected this match: not this player's bombita, the bet, or the forced-zero forfeit. */
+  bombita: "none" | "bet" | "forfeit";
+};
+
+/**
+ * The single source of truth for one player's points on one knockout match — the exact
+ * figure that lands on the leaderboard. Folds in the clean-sheet/cojones bonus (when the
+ * match is bonus-eligible), the stage multiplier, and the QF bombita (double-or-nothing
+ * bet, or the forced zero on the last QF for anyone who never bet). Both the standings and
+ * the per-match UI badges call this so they can never drift apart.
+ */
+export function knockoutMatchScore(args: {
+  pred: KnockoutPrediction | null;
+  result: KnockoutResult;
+  stageMult: number;
+  bonusEligible: boolean;
+  isBombita: boolean;
+  isForfeit: boolean;
+}): KnockoutMatchScore {
+  const { pred, result, stageMult, bonusEligible, isBombita, isForfeit } = args;
+  const breakdown = knockoutPoints(pred, result);
+  const cleanSheet = bonusEligible ? cleanSheetBonus(pred?.reg ?? null, result.reg) : 0;
+  const cojones = bonusEligible ? cojonesBonus(pred?.reg ?? null, result.reg) : 0;
+  const normal = (breakdown.total + cleanSheet + cojones) * stageMult;
+
+  let points = normal;
+  let bombita: KnockoutMatchScore["bombita"] = "none";
+  if (isBombita) {
+    points = bombitaMatchPoints(normal, stageMult, breakdown);
+    bombita = "bet";
+  } else if (isForfeit) {
+    points = 0;
+    bombita = "forfeit";
+  }
+
+  return { breakdown, cleanSheet, cojones, normal, points, bombita };
 }
 
 export type KnockoutMatchFields = {

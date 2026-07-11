@@ -9,6 +9,7 @@ import {
   toKnockoutPrediction,
   normalizeKnockoutPrediction,
   bombitaMatchPoints,
+  knockoutMatchScore,
   type KnockoutPrediction,
   type KnockoutResult,
   type KnockoutScoreFields,
@@ -386,5 +387,49 @@ describe("bombitaMatchPoints", () => {
   });
   it("keeps half-points from the doubled total", () => {
     expect(bombitaMatchPoints(10.5, 1.5, bd({ reg: 3, total: 7 }))).toBe(21);
+  });
+});
+
+describe("knockoutMatchScore", () => {
+  // France 2-0 Morocco (QF, x1.5). Predicting 1-0 = right outcome (1) + right advancer (3)
+  // + France clean sheet (1) = 5, then x1.5.
+  const oneNil = pred([1, 0]);
+  const franceWin = res([2, 0], null, "REGULAR", "HOME");
+  const base = { result: franceWin, stageMult: 1.5, bonusEligible: true, isBombita: false, isForfeit: false };
+
+  it("folds the clean-sheet bonus and stage multiplier into the normal total", () => {
+    const s = knockoutMatchScore({ ...base, pred: oneNil });
+    expect(s.cleanSheet).toBe(1);
+    expect(s.normal).toBe(7.5); // (4 base + 1 clean sheet) * 1.5
+    expect(s.points).toBe(7.5);
+    expect(s.bombita).toBe("none");
+  });
+
+  it("a bombita that missed the exact 90' pays only the advancer floor", () => {
+    const s = knockoutMatchScore({ ...base, pred: oneNil, isBombita: true });
+    expect(s.normal).toBe(7.5);
+    expect(s.points).toBe(4.5); // 3 * 1.5, double-or-nothing floor
+    expect(s.bombita).toBe("bet");
+  });
+
+  it("a bombita on the exact 90' score doubles the whole haul", () => {
+    const s = knockoutMatchScore({ ...base, pred: pred([2, 0]), isBombita: true });
+    expect(s.normal).toBe(10.5); // (6 base + 1 clean sheet) * 1.5
+    expect(s.points).toBe(21); // doubled
+    expect(s.bombita).toBe("bet");
+  });
+
+  it("a never-bet forfeit on the last QF banks zero", () => {
+    const s = knockoutMatchScore({ ...base, pred: pred([2, 0]), isForfeit: true });
+    expect(s.normal).toBe(10.5);
+    expect(s.points).toBe(0);
+    expect(s.bombita).toBe("forfeit");
+  });
+
+  it("drops per-match bonuses when the match is not yet bonus-eligible", () => {
+    const s = knockoutMatchScore({ ...base, pred: oneNil, bonusEligible: false });
+    expect(s.cleanSheet).toBe(0);
+    expect(s.normal).toBe(6); // 4 base * 1.5, no clean sheet
+    expect(s.points).toBe(6);
   });
 });

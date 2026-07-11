@@ -1,7 +1,7 @@
 import { isScoreable, type MatchLike } from "./rules";
 import { cleanSheetBonus, cojonesBonus, goalsOff, predictionPoints } from "./scoring";
 import { championPoints, darkHorsePoints, goldenBootPoints, stageMultiplier } from "./bonus";
-import { bombitaMatchPoints, knockoutPoints, toKnockoutPrediction, toKnockoutResult } from "./knockout";
+import { knockoutMatchScore, toKnockoutPrediction, toKnockoutResult } from "./knockout";
 
 /** The last QF fixture (latest kickoff; ties → lowest id), or null if none. Drives the no-bet penalty. */
 export function lastQuarterFinalId(matches: { id: number; stage: string; kickoffUtc: Date }[]): number | null {
@@ -114,31 +114,26 @@ export function computeStandings(
         const koPred = p
           ? toKnockoutPrediction({ homeScore: p.homeScore, awayScore: p.awayScore, etHomeScore: p.etHomeScore ?? null, etAwayScore: p.etAwayScore ?? null, penAdvance: p.penAdvance ?? null })
           : null;
-        const bd = knockoutPoints(koPred, koResult);
         // Clean-sheet / cojones apply on the 90' score, same as the group stage, from the cutoff
-        // onwards. Then the whole match total is scaled by the stage: (base + bonus) * multiplier.
+        // onwards. Then the whole match total is scaled by the stage, and the QF bombita resolves.
         // The group "double" never applies to knockouts. Half-points (x1.5, x2.5) are kept as-is.
         const koEligible = perMatchFrom !== null && m.kickoffUtc.getTime() >= perMatchFrom.getTime();
-        const koCs = koEligible ? cleanSheetBonus(koPred?.reg ?? null, koResult.reg) : 0;
-        const koCj = koEligible ? cojonesBonus(koPred?.reg ?? null, koResult.reg) : 0;
         const koMult = stageMultiplier(m.stage);
-        const normalTotal = (bd.total + koCs + koCj) * koMult;
+        const isBombita = bombitaMatchId === m.id;
+        const isForfeit = bombitaMatchId == null && m.id === lastQfId; // never bet -> forced 0 on the last QF
+        const s = knockoutMatchScore({ pred: koPred, result: koResult, stageMult: koMult, bonusEligible: koEligible, isBombita, isForfeit });
 
-        let contribution = normalTotal;
-        if (bombitaMatchId === m.id) {
-          contribution = bombitaMatchPoints(normalTotal, koMult, bd); // double-or-nothing on this match
-          bombitaBonus += contribution - normalTotal;
-          bombitaDetail = { matchId: m.id, paid: contribution, normal: normalTotal, bet: true };
-        } else if (bombitaMatchId == null && m.id === lastQfId) {
-          contribution = 0; // never bet -> forced 0 on the last QF
-          bombitaBonus += contribution - normalTotal;
-          bombitaDetail = { matchId: m.id, paid: 0, normal: normalTotal, bet: false };
+        points += s.points;
+        perMatchBonus += (s.cleanSheet + s.cojones) * koMult; // normal bonus part (bombita delta is tracked separately)
+        if (isBombita) {
+          bombitaBonus += s.points - s.normal;
+          bombitaDetail = { matchId: m.id, paid: s.points, normal: s.normal, bet: true };
+        } else if (isForfeit) {
+          bombitaBonus += s.points - s.normal;
+          bombitaDetail = { matchId: m.id, paid: 0, normal: s.normal, bet: false };
         }
-
-        points += contribution;
-        perMatchBonus += (koCs + koCj) * koMult; // normal bonus part (bombita delta is tracked separately)
-        if (bd.reg === 3) exact++;
-        else if (bd.reg === 1) outcomes++;
+        if (s.breakdown.reg === 3) exact++;
+        else if (s.breakdown.reg === 1) outcomes++;
         off += goalsOff(koPred?.reg ?? null, koResult.reg) ?? 0;
         continue;
       }

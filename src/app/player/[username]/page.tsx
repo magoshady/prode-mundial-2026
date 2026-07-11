@@ -6,8 +6,8 @@ import { matches, meta, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isScoreable, othersVisible } from "@/lib/rules";
 import { goalsOff, predictionPoints } from "@/lib/scoring";
-import { knockoutPoints, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
-import { computeStandings } from "@/lib/standings";
+import { knockoutMatchScore, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
+import { computeStandings, lastQuarterFinalId } from "@/lib/standings";
 import { PER_MATCH_BONUS_FROM, stageMultiplier } from "@/lib/bonus";
 import Nav from "@/components/Nav";
 
@@ -49,6 +49,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
   // Same visibility rule as compare: predictions only show once the match kicks off.
   const visible = all.filter((m) => othersVisible(m, now));
   const predByMatch = new Map(allPreds.filter((p) => p.userId === player.id).map((p) => [p.matchId, p]));
+  const playerBombitaId = picks.find((p) => p.userId === player.id)?.bombitaMatchId ?? null;
+  const lastQfId = lastQuarterFinalId(all);
 
   const matchRows = visible.map((m) => {
     const pred = predByMatch.get(m.id) ?? null;
@@ -57,7 +59,18 @@ export default async function PlayerPage({ params }: { params: Promise<{ usernam
     if (m.stage !== "GROUP_STAGE") {
       const koResult = toKnockoutResult({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, duration: m.duration, winner: m.winner });
       const koPred = pred ? toKnockoutPrediction({ homeScore: pred.homeScore, awayScore: pred.awayScore, etHomeScore: pred.etHomeScore, etAwayScore: pred.etAwayScore, penAdvance: pred.penAdvance }) : null;
-      const pts = koResult ? knockoutPoints(koPred, koResult).total * stageMultiplier(m.stage) : null;
+      // Same scoring as the leaderboard (clean sheet/cojones, stage multiplier, QF bombita)
+      // so each per-match figure reconciles with the headline total above.
+      const pts = koResult
+        ? knockoutMatchScore({
+            pred: koPred,
+            result: koResult,
+            stageMult: stageMultiplier(m.stage),
+            bonusEligible: m.kickoffUtc.getTime() >= PER_MATCH_BONUS_FROM.getTime(),
+            isBombita: playerBombitaId === m.id,
+            isForfeit: playerBombitaId == null && m.id === lastQfId,
+          }).points
+        : null;
       const predLabel = pred
         ? `${pred.homeScore}-${pred.awayScore}${pred.etHomeScore !== null ? ` (${pred.etHomeScore}-${pred.etAwayScore} aet${pred.penAdvance ? `, pen ${pred.penAdvance === "HOME" ? m.homeTeam : m.awayTeam}` : ""})` : ""}`
         : null;

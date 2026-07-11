@@ -4,9 +4,10 @@ import { matches, meta } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { isOpenForPrediction, isScoreable, othersVisible } from "@/lib/rules";
 import { predictionPoints } from "@/lib/scoring";
-import { knockoutPoints, knockoutPredictionDetail, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
+import { knockoutMatchScore, knockoutPredictionDetail, knockoutScoreLabel, toKnockoutPrediction, toKnockoutResult } from "@/lib/knockout";
 import { isDoubleRevealed } from "@/lib/double";
-import { stageMultiplier } from "@/lib/bonus";
+import { PER_MATCH_BONUS_FROM, stageMultiplier } from "@/lib/bonus";
+import { lastQuarterFinalId } from "@/lib/standings";
 import Nav from "@/components/Nav";
 import MatchRow, { type OtherPred } from "@/components/MatchRow";
 
@@ -39,6 +40,7 @@ export default async function FixturePage() {
 
   const myBonus = allBonus.find((b) => b.userId === user.id) ?? null;
   const bombitaByUser = new Map(allBonus.map((b) => [b.userId, b.bombitaMatchId ?? null]));
+  const lastQfId = lastQuarterFinalId(all);
 
   const myBombitaId = myBonus?.bombitaMatchId ?? null;
   const myBombitaMatch = myBombitaId !== null ? all.find((m) => m.id === myBombitaId) : null;
@@ -73,15 +75,30 @@ export default async function FixturePage() {
       ? toKnockoutResult({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, duration: m.duration, winner: m.winner })
       : null;
 
-    const koPts = (row: { homeScore: number; awayScore: number; etHomeScore: number | null; etAwayScore: number | null; penAdvance: string | null } | null) =>
-      koResult ? knockoutPoints(row ? toKnockoutPrediction(row) : null, koResult).total * stageMultiplier(m.stage) : null;
+    // Per-match badge uses the exact same scoring the leaderboard does (clean sheet/cojones,
+    // stage multiplier, and the QF bombita), so a badge always matches the standings.
+    const bonusEligible = m.kickoffUtc.getTime() >= PER_MATCH_BONUS_FROM.getTime();
+    const koPts = (
+      row: { homeScore: number; awayScore: number; etHomeScore: number | null; etAwayScore: number | null; penAdvance: string | null } | null,
+      uBombitaId: number | null,
+    ) =>
+      koResult
+        ? knockoutMatchScore({
+            pred: row ? toKnockoutPrediction(row) : null,
+            result: koResult,
+            stageMult: stageMultiplier(m.stage),
+            bonusEligible,
+            isBombita: uBombitaId === m.id,
+            isForfeit: uBombitaId == null && m.id === lastQfId,
+          }).points
+        : null;
 
     const finalScoreLabel = knockout && m.status === "FINISHED"
       ? knockoutScoreLabel({ regHome: m.regularTimeHome, regAway: m.regularTimeAway, etHome: m.extraTimeHome, etAway: m.extraTimeAway, penHome: m.penaltiesHome, penAway: m.penaltiesAway, duration: m.duration })
       : null;
 
     const myPts = knockout
-      ? koPts(pred)
+      ? koPts(pred, myBombitaId)
       : result
         ? predictionPoints(pred ? { home: pred.homeScore, away: pred.awayScore } : null, result)
         : null;
@@ -98,7 +115,7 @@ export default async function FixturePage() {
           home: p?.homeScore ?? null,
           away: p?.awayScore ?? null,
           pts: knockout
-            ? koPts(p ?? null)
+            ? koPts(p ?? null, bombitaByUser.get(u.id) ?? null)
             : result ? predictionPoints(p ? { home: p.homeScore, away: p.awayScore } : null, result) : null,
           detail: knockout && p
             ? knockoutPredictionDetail(p, m.homeTeam ?? "Home", m.awayTeam ?? "Away")
